@@ -1,179 +1,93 @@
-import Constants from "expo-constants";
+// L'API Key Helius n'est plus nécessaire ici
+// const HELIUS_API_KEY = ...
 
-const HELIUS_API_KEY = Constants.expoConfig?.extra?.solanaRpcEndpoint
-  .split("api-key=")[1];
-
-// INTERFACES
+// INTERFACES MISES À JOUR
 export interface LeaderboardEntry {
   rank: number;
-  rankChange24h: 'up' | 'down' | 'same';
-  address: string;
-  name: string;
-  totalProfit: number;
-  winningTrades: number;
-  losingTrades: number;
+  rankChange24h: 'up' | 'down' | 'same'; // Pour l'instant, on laisse 'same'
+  user_address: string;
+  name: string; // On le construira côté client
+  pnl_sol: number;
+  status: 'WIN' | 'LOSS';
+  // On peut ajouter d'autres champs si nécessaire
+  winningTrades?: number; // Ces champs ne sont plus directement dans la réponse principale
+  losingTrades?: number;  // On pourrait les calculer ou les ajouter à l'API plus tard
 }
 
+// L'ancienne interface PlatformActivity n'est plus utilisée
+/*
 export interface PlatformActivity {
-  address: string;
-  name: string;
-  realizedPnl: number;
-  winningTrades: number;
-  losingTrades: number;
+  ...
 }
+*/
 
-// LOGIQUE COMMUNE
-async function getFullHistory(address: string) {
-  const url = `https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_API_KEY}`;
-  const transactions: any[] = [];
-  let lastSignature: string | null = null;
+// On ne garde que la fonction principale qui appelle l'API
+export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<LeaderboardEntry[]> {
+  // Pour le développement, on pointe vers localhost.
+  // Pour la production, ce sera l'URL de notre serveur déployé.
+  const API_URL = `http://localhost:3000/leaderboard/${platform}`;
 
-  console.log("Starting full history fetch...");
+  console.log(`Fetching leaderboard for "${platform}" from API: ${API_URL}`);
 
-  while (true) {
-    const fetchUrl: string = lastSignature ? `${url}&before=${lastSignature}` : url;
-    const response: Response = await fetch(fetchUrl);
-    const data: any[] = await response.json();
-
+  try {
+    const response = await fetch(API_URL);
     if (!response.ok) {
-      console.error("API Error:", data);
-      throw new Error(`Helius API error: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(`API returned an error: ${errorData.error || response.statusText}`);
     }
 
-    if (data.length === 0) {
-      console.log("No more transactions found.");
-      break;
-    }
+    const dataFromApi = await response.json();
 
-    transactions.push(...data);
-    lastSignature = data[data.length - 1].signature;
-    console.log(`Fetched batch of ${data.length} transactions. Total: ${transactions.length}. Continuing...`);
-
-    if (transactions.length > 500) {
-        console.log("Stopping fetch at 500 transactions for development purposes.");
-        break;
-    }
-  }
-
-  console.log(`Finished fetching. Total transactions found: ${transactions.length}`);
-  return transactions;
-}
-
-export async function getPlatformActivity(address: string, platformSuffix: string): Promise<PlatformActivity> {
-  console.log(`Analyzing history for ${address} on platform ".${platformSuffix}"...`);
-  const allTransactions = await getFullHistory(address);
-
-  const trades: { [mint: string]: { solSpent: number; solReceived: number; hasBought: boolean; hasSold: boolean; } } = {};
-
-  for (const tx of allTransactions) {
-    if (tx.error) continue;
-
-    const tokenTransfers = tx.tokenTransfers ?? [];
-    if (tokenTransfers.length === 0) continue;
-
-    const SOL_MINT = "So11111111111111111111111111111111111111112";
-    let solIn = 0;
-    let solOut = 0;
+    // L'API renvoie les données brutes. On les transforme en LeaderboardEntry.
+    const leaderboard: LeaderboardEntry[] = dataFromApi.map((entry: any, index: number) => {
+      // Calcul du nombre de trades gagnants/perdants si nécessaire.
+      // Pour l'instant, on se base sur les données de l'API.
+      // Ici, on va devoir regrouper par `user_address` pour calculer le W/L ratio total.
+      return {
+        ...entry, // Copie les champs comme user_address, pnl_sol, status
+        rank: index + 1,
+        name: `User ${entry.user_address.substring(0, 4)}...`,
+        rankChange24h: 'same',
+      };
+    });
     
-    const hasWsolTransfer = tokenTransfers.some((t: any) => t.mint === SOL_MINT && (t.fromUserAccount === address || t.toUserAccount === address));
+    // Après avoir mappé, nous devons agréger les résultats par utilisateur.
+    const userStats: { [address: string]: { totalPnl: number; wins: number; losses: number; }} = {};
 
-    if (hasWsolTransfer) {
-      for (const transfer of tokenTransfers) {
-        if (transfer.mint === SOL_MINT && transfer.tokenAmount) {
-          let wsolAmountLamports = 0;
-          if (typeof transfer.tokenAmount === 'object' && transfer.tokenAmount.amount) {
-            wsolAmountLamports = Number(transfer.tokenAmount.amount);
-          } else if (typeof transfer.tokenAmount === 'number') {
-            wsolAmountLamports = transfer.tokenAmount * 1e9;
-          }
-          if (!isNaN(wsolAmountLamports)) {
-            if (transfer.fromUserAccount === address) solOut += wsolAmountLamports;
-            if (transfer.toUserAccount === address) solIn += wsolAmountLamports;
-          }
+    dataFromApi.forEach((trade: any) => {
+        if (!userStats[trade.user_address]) {
+            userStats[trade.user_address] = { totalPnl: 0, wins: 0, losses: 0 };
         }
-      }
-    } else if (tx.nativeTransfers) {
-      for (const transfer of tx.nativeTransfers) {
-        if (transfer.fromUserAccount === address) solOut += transfer.amount;
-        if (transfer.toUserAccount === address) solIn += transfer.amount;
-      }
-    }
+        userStats[trade.user_address].totalPnl += trade.pnl_sol;
+        if(trade.status === 'WIN') {
+            userStats[trade.user_address].wins++;
+        } else {
+            userStats[trade.user_address].losses++;
+        }
+    });
 
-    if (tx.feePayer === address) {
-      solOut += tx.fee;
-    }
+    // Trier les utilisateurs par PnL total
+    const sortedUsers = Object.keys(userStats).sort((a, b) => userStats[b].totalPnl - userStats[a].totalPnl);
 
-    const platformMintsInTx = [...new Set(tokenTransfers.map((t: any) => t.mint).filter((m: string) => m.endsWith(platformSuffix)))];
+    // Créer le leaderboard final
+    const finalLeaderboard: LeaderboardEntry[] = sortedUsers.map((address, index) => ({
+      rank: index + 1,
+      rankChange24h: 'same',
+      user_address: address,
+      name: `User ${address.substring(0, 4)}...`,
+      pnl_sol: userStats[address].totalPnl,
+      winningTrades: userStats[address].wins,
+      losingTrades: userStats[address].losses,
+      status: userStats[address].totalPnl > 0 ? 'WIN' : 'LOSS', // Status global
+    }));
 
-    for (const mint of platformMintsInTx) {
-      const isBuy = tokenTransfers.some((t: any) => t.mint === mint && t.toUserAccount === address);
-      const isSell = tokenTransfers.some((t: any) => t.mint === mint && t.fromUserAccount === address);
-      if (isBuy && isSell) continue;
 
-      const mintStr = mint as string;
-      if (!(mintStr in trades)) {
-        trades[mintStr] = { solSpent: 0, solReceived: 0, hasBought: false, hasSold: false };
-      }
-      if (isBuy) {
-        trades[mintStr].solSpent += (solOut - solIn);
-        trades[mintStr].hasBought = true;
-      } else if (isSell) {
-        trades[mintStr].solReceived += (solIn - solOut);
-        trades[mintStr].hasSold = true;
-      }
-    }
+    console.log(`Successfully fetched and processed ${finalLeaderboard.length} leaderboard entries.`);
+    return finalLeaderboard;
+
+  } catch (error) {
+    console.error(`Failed to fetch leaderboard from API for "${platform}":`, error);
+    // Retourner un tableau vide en cas d'erreur pour que l'UI ne crashe pas.
+    return [];
   }
-  
-  console.log(`[${address.substring(0,4)}...] Final Trades Object for W/L:`, JSON.stringify(trades, null, 2));
-
-  let winningTrades = 0;
-  let losingTrades = 0;
-  let totalProfitSol = 0;
-
-  for (const mint in trades) {
-    const trade = trades[mint];
-    if (trade.hasBought && trade.hasSold) {
-      const profit = trade.solReceived - trade.solSpent;
-      if (profit > 0) {
-        winningTrades++;
-      } else {
-        losingTrades++;
-      }
-      totalProfitSol += profit;
-    }
-  }
-  
-  const realizedPnlSol = totalProfitSol / 1e9;
-  console.log(`[${address.substring(0, 4)}...] Realized P/L: ${realizedPnlSol.toFixed(4)} SOL. Wins: ${winningTrades}, Losses: ${losingTrades}`);
-
-  return {
-    address: address,
-    name: `User ${address.substring(0, 4)}...`,
-    realizedPnl: realizedPnlSol,
-    winningTrades: winningTrades,
-    losingTrades: losingTrades,
-  };
-}
-
-export async function getFullLeaderboard(targetAddresses: string[], platformSuffix: string): Promise<LeaderboardEntry[]> {
-  const activities: PlatformActivity[] = [];
-  for (const addr of targetAddresses) {
-    try {
-      const activity = await getPlatformActivity(addr, platformSuffix);
-      activities.push(activity);
-    } catch (error) {
-      console.error(`Failed to fetch activity for ${addr}:`, error);
-    }
-  }
-
-  activities.sort((a, b) => b.realizedPnl - a.realizedPnl);
-
-  const leaderboard: LeaderboardEntry[] = activities.map((activity, index) => ({
-    ...activity,
-    rank: index + 1,
-    rankChange24h: 'same',
-    totalProfit: activity.realizedPnl,
-  }));
-
-  return leaderboard;
 } 

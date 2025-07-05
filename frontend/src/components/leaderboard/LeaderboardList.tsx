@@ -16,7 +16,7 @@ export function LeaderboardList({ data }: LeaderboardListProps) {
     <View style={{ marginVertical: 20 }}>
       {data.map((item) => (
         <LeaderboardItem
-          key={item.address} // Utiliser l'adresse comme clé est plus robuste
+          key={item.user_address} // Utiliser user_address comme clé
           item={item}
           isCurrentUser={isCurrentUser(item)}
         />

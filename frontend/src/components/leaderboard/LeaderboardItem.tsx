@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
-import { LeaderboardEntry } from "../../data/mock-leaderboard";
+import { LeaderboardEntry } from "../../data/leaderboard-data-access";
 import { ellipsify } from "../../utils/ellipsify";
 import MaterialCommunityIcon from "@expo/vector-icons/MaterialCommunityIcons";
 
@@ -12,8 +12,8 @@ interface LeaderboardItemProps {
 
 export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItemProps) {
   const theme = useTheme();
-  const profit = item.totalProfit;
-  const displayProfit = typeof profit === 'number' && !isNaN(profit) ? profit.toFixed(2) : '...';
+  const profit = item.pnl_sol;
+  const displayProfit = typeof profit === 'number' && !isNaN(profit) ? profit.toFixed(4) : '...';
 
   const containerStyle = [
     styles.container,
@@ -25,14 +25,14 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
   ];
 
   const getRankChangeColor = () => {
-    if (item.rankChange24h > 0) return "green";
-    if (item.rankChange24h < 0) return "red";
+    if (item.rankChange24h === 'up') return "green";
+    if (item.rankChange24h === 'down') return "red";
     return theme.colors.outline;
   };
 
   const getRankChangeIcon = () => {
-    if (item.rankChange24h > 0) return "arrow-up-thin";
-    if (item.rankChange24h < 0) return "arrow-down-thin";
+    if (item.rankChange24h === 'up') return "arrow-up-thin";
+    if (item.rankChange24h === 'down') return "arrow-down-thin";
     return "minus";
   }
 
@@ -42,12 +42,9 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
         <Text style={[styles.rank, { color: theme.colors.onSurface }]}>
           #{item.rank}
         </Text>
-        {item.rankChange24h !== 0 && (
+        {item.rankChange24h !== 'same' && (
            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
              <MaterialCommunityIcon name={getRankChangeIcon()} color={getRankChangeColor()} size={14}/>
-             <Text style={[styles.rankChange, { color: getRankChangeColor() }]}>
-               {Math.abs(item.rankChange24h)}
-             </Text>
            </View>
         )}
       </View>
@@ -58,17 +55,17 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
         >
           {item.name}
           <Text style={[styles.address, { color: theme.colors.outline }]}>
-            {' '}({ellipsify(item.address)})
+            {' '}({ellipsify(item.user_address)})
           </Text>
         </Text>
       </View>
       <View style={styles.scoreContainer}>
-        <Text style={[styles.score, { color: theme.colors.primary, fontWeight: 'bold' }]}>
+        <Text style={[styles.score, { color: profit > 0 ? 'green' : 'red', fontWeight: 'bold' }]}>
           {displayProfit} SOL
         </Text>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
           <Text style={{fontSize: 14}}>
-            <Text style={{color: 'green'}}>{item.winningTrades} W</Text> / <Text style={{color: 'red'}}>{item.losingTrades} L</Text> ({item.winningTrades + item.losingTrades} trades)
+            <Text style={{color: 'green'}}>{item.winningTrades} W</Text> / <Text style={{color: 'red'}}>{item.losingTrades} L</Text>
           </Text>
         </View>
       </View>
