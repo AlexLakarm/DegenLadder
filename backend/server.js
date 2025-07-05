@@ -23,8 +23,8 @@ app.get('/leaderboard/:platform', async (req, res) => {
         const { data, error } = await supabase
             .from(tableName)
             .select('*')
-            // Optionnel: trier par PNL, du plus haut au plus bas
-            .order('pnl_sol', { ascending: false });
+            // On trie désormais par le degen_score, du plus haut au plus bas
+            .order('degen_score', { ascending: false });
 
         if (error) {
             // "throw error" enverra au bloc catch
