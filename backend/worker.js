@@ -1,15 +1,12 @@
 // Importer les dépendances
 require('dotenv').config();
 const axios = require('axios');
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('./lib/supabaseClient');
 
 // Récupérer les clés d'API depuis les variables d'environnement
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-// Initialiser le client Supabase
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// SUPABASE_URL et SUPABASE_KEY sont maintenant gérés dans supabaseClient.js
+// L'initialisation du client Supabase est aussi gérée là-bas.
 
 // LOGIQUE COMMUNE (portée depuis le frontend)
 async function getFullHistory(address) {
@@ -170,8 +167,8 @@ async function analyzeAndStoreTrades(address, platform) {
 // --- POINT D'ENTRÉE DU SCRIPT ---
 async function main() {
   // Vérification des variables d'environnement
-  if (!HELIUS_API_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
-    console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY, SUPABASE_URL, SUPABASE_KEY).");
+  if (!HELIUS_API_KEY) {
+    console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
     console.log("Veuillez vous assurer que votre fichier .env est correctement configuré.");
     return;
   }
