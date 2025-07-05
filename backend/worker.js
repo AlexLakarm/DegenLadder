@@ -126,11 +126,21 @@ async function analyzeAndStoreTrades(address, platform) {
     // On ne traite que les trades complets (au moins un achat et une vente)
     if (trade.buyTransactions.length > 0 && trade.sellTransactions.length > 0) {
       const pnl = trade.solReceived - trade.solSpent;
+      const pnl_sol = pnl / 1e9;
+
+      // Calcul du Degen Score
+      let degen_score = pnl > 0 ? 10 : -10; // Points de base pour WIN/LOSS
+      if (pnl_sol > 0) {
+        // Ajout du bonus basé sur le PNL
+        degen_score += 50 * Math.log(1 + pnl_sol);
+      }
+
       tradesToUpsert.push({
         user_address: address,
         token_mint: mint,
         status: pnl > 0 ? 'WIN' : 'LOSS',
-        pnl_sol: pnl / 1e9,
+        pnl_sol: pnl_sol,
+        degen_score: Math.round(degen_score), // On s'assure que le score est un entier
         sol_spent_lamports: trade.solSpent,
         sol_received_lamports: trade.solReceived,
         first_buy_at: trade.firstBuyAt,
