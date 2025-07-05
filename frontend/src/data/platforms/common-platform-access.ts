@@ -8,6 +8,7 @@ export interface LeaderboardEntry {
   user_address: string;
   name: string; // On le construira côté client
   pnl_sol: number;
+  degen_score: number; // Ajout du degen_score
   status: 'WIN' | 'LOSS';
   // On peut ajouter d'autres champs si nécessaire
   winningTrades?: number; // Ces champs ne sont plus directement dans la réponse principale
@@ -52,13 +53,14 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
     });
     
     // Après avoir mappé, nous devons agréger les résultats par utilisateur.
-    const userStats: { [address: string]: { totalPnl: number; wins: number; losses: number; }} = {};
+    const userStats: { [address: string]: { totalPnl: number; totalDegenScore: number; wins: number; losses: number; }} = {};
 
     dataFromApi.forEach((trade: any) => {
         if (!userStats[trade.user_address]) {
-            userStats[trade.user_address] = { totalPnl: 0, wins: 0, losses: 0 };
+            userStats[trade.user_address] = { totalPnl: 0, totalDegenScore: 0, wins: 0, losses: 0 };
         }
         userStats[trade.user_address].totalPnl += trade.pnl_sol;
+        userStats[trade.user_address].totalDegenScore += trade.degen_score; // On somme les scores
         if(trade.status === 'WIN') {
             userStats[trade.user_address].wins++;
         } else {
@@ -67,7 +69,7 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
     });
 
     // Trier les utilisateurs par PnL total
-    const sortedUsers = Object.keys(userStats).sort((a, b) => userStats[b].totalPnl - userStats[a].totalPnl);
+    const sortedUsers = Object.keys(userStats).sort((a, b) => userStats[b].totalDegenScore - userStats[a].totalDegenScore);
 
     // Créer le leaderboard final
     const finalLeaderboard: LeaderboardEntry[] = sortedUsers.map((address, index) => ({
@@ -76,6 +78,7 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
       user_address: address,
       name: `User ${address.substring(0, 4)}...`,
       pnl_sol: userStats[address].totalPnl,
+      degen_score: userStats[address].totalDegenScore, // On ajoute le score total
       winningTrades: userStats[address].wins,
       losingTrades: userStats[address].losses,
       status: userStats[address].totalPnl > 0 ? 'WIN' : 'LOSS', // Status global

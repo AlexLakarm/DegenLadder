@@ -63,6 +63,9 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
         <Text style={[styles.score, { color: profit > 0 ? 'green' : 'red', fontWeight: 'bold' }]}>
           {displayProfit} SOL
         </Text>
+        <Text style={[styles.score, { fontSize: 12, color: theme.colors.outline, fontWeight: 'normal' }]}>
+          ({item.degen_score} pts)
+        </Text>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
           <Text style={{fontSize: 14}}>
             <Text style={{color: 'green'}}>{item.winningTrades} W</Text> / <Text style={{color: 'red'}}>{item.losingTrades} L</Text>
