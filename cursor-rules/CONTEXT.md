@@ -67,6 +67,11 @@ CREATE TABLE trades_pump (
 ```
 La table `trades_bonk` est identique. 
 
+### Vue `degen_rank`
+Pour agréger les scores, une vue SQL (`VIEW`) est utilisée. Elle calcule le score total, le PNL et le nombre de trades pour chaque utilisateur en combinant les tables `trades_pump` et `trades_bonk`.
+
+**Note sur la scalabilité**: Pour le développement, une `VIEW` standard est suffisante. En production, avec un grand nombre d'utilisateurs, il faudra la transformer en `MATERIALIZED VIEW` rafraîchie périodiquement (ex: toutes les 10 minutes) pour garantir des temps de réponse rapides.
+
 ### Algorithme du "Degen Score" V1
 Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la colonne `degen_score`.
 - **Trade Gagnant**: +10 points

@@ -39,6 +39,25 @@ app.get('/leaderboard/:platform', async (req, res) => {
     }
 });
 
+// Route pour récupérer le classement global depuis la vue
+app.get('/leaderboard/global', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('degen_rank') // On interroge notre nouvelle vue
+            .select('*');
+
+        if (error) {
+            throw error;
+        }
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error(`Error fetching global leaderboard:`, error.message);
+        res.status(500).json({ error: 'An internal server error occurred.' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`API Server listening on port ${port}`);
 }); 
