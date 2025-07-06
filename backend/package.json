@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon -r dotenv/config server.js",
     "start:api": "node -r dotenv/config server.js",
     "start:worker": "node -r dotenv/config worker.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,5 +19,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
