@@ -94,3 +94,37 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
     return [];
   }
 } 
+
+// Nouvelle fonction pour le classement global
+export async function getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
+  const API_URL = `http://localhost:3000/leaderboard/global`;
+  console.log(`Fetching global leaderboard from API: ${API_URL}`);
+
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API returned an error: ${errorData.error || response.statusText}`);
+    }
+    const dataFromApi = await response.json();
+    // La vue SQL nous donne déjà la plupart des champs, on doit juste les typer correctement
+    const leaderboard: LeaderboardEntry[] = dataFromApi.map((entry: any) => ({
+      rank: entry.rank,
+      user_address: entry.user_address,
+      name: `User ${entry.user_address.substring(0, 4)}...`,
+      pnl_sol: entry.total_pnl_sol,
+      degen_score: entry.total_degen_score,
+      winningTrades: entry.total_wins,
+      losingTrades: entry.total_losses,
+      rankChange24h: 'same', // Logique à ajouter plus tard
+      status: entry.total_pnl_sol > 0 ? 'WIN' : 'LOSS',
+    }));
+
+    console.log(`Successfully fetched and processed ${leaderboard.length} global leaderboard entries.`);
+    return leaderboard;
+
+  } catch (error) {
+    console.error(`Failed to fetch global leaderboard from API:`, error);
+    return [];
+  }
+} 

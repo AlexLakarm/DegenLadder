@@ -5,12 +5,13 @@ import { LeaderboardEntry } from '../../data/leaderboard-data-access';
 
 interface LeaderboardListProps {
   data: LeaderboardEntry[];
+  currentUserAddress?: string;
 }
 
-export function LeaderboardList({ data }: LeaderboardListProps) {
-  // Pour l'instant, on considère qu'aucun utilisateur n'est le "currentUser"
-  // On pourra rendre ça dynamique plus tard si besoin.
-  const isCurrentUser = (item: LeaderboardEntry) => false;
+export function LeaderboardList({ data, currentUserAddress }: LeaderboardListProps) {
+  const isCurrentUser = (item: LeaderboardEntry) => {
+    return item.user_address === currentUserAddress;
+  };
 
   return (
     <View style={{ marginVertical: 20 }}>
