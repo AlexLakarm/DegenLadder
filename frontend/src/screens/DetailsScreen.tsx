@@ -1,59 +1,107 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Card, List, Text, Title } from "react-native-paper";
+import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
+import { Card, List, Text, Title, useTheme } from "react-native-paper";
+import { useQuery } from "@tanstack/react-query";
+import { Platform, PlatformColor } from "react-native";
+
+// On utilise la même adresse mockée que dans HomeScreen pour les tests
+const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
+
+// Fonction pour fetch les stats
+async function fetchUserStats(userAddress: string) {
+  // Assurez-vous que l'URL correspond à votre configuration locale/de production
+  const response = await fetch(`http://localhost:3000/user/${userAddress}/stats`);
+  if (!response.ok) {
+    throw new Error('Network response was not ok');
+  }
+  return response.json();
+}
+
+// Fonction pour fetch l'historique
+async function fetchUserHistory(userAddress: string) {
+  const response = await fetch(`http://localhost:3000/user/${userAddress}/history`);
+  if (!response.ok) {
+    throw new Error('Network response was not ok for history');
+  }
+  return response.json();
+}
 
 export default function DetailsScreen() {
-  // --- Mock Data ---
-  const scoreByPlatform = [
-    { platform: "pump.fun", score: 800 },
-    { platform: "letsbonk.fun", score: 537 },
-  ];
+  const theme = useTheme();
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ['userStats', MOCK_USER_ADDRESS],
+    queryFn: () => fetchUserStats(MOCK_USER_ADDRESS)
+  });
 
-  const pointsHistory = [
-    { reason: "Good exit on $POPCAT", points: "+150", date: "2024-07-03" },
-    { reason: "Rekt on $DUMDUM", points: "-50", date: "2024-07-02" },
-    { reason: "Early entry on $WIF", points: "+200", date: "2024-07-01" },
-    { reason: "Forgot to sell $PEPE", points: "-25", date: "2024-06-30" },
-  ];
+  const { data: history, isLoading: isLoadingHistory, isError: isErrorHistory } = useQuery({
+    queryKey: ['userHistory', MOCK_USER_ADDRESS],
+    queryFn: () => fetchUserHistory(MOCK_USER_ADDRESS)
+  });
+
+  // --- Mock Data ---
+  // const pointsHistory = [
+  //   { reason: "Good exit on $POPCAT", points: "+150", date: "2024-07-03" },
+  //   { reason: "Rekt on $DUMDUM", points: "-50", date: "2024-07-02" },
+  //   { reason: "Early entry on $WIF", points: "+200", date: "2024-07-01" },
+  //   { reason: "Forgot to sell $PEPE", points: "-25", date: "2024-06-30" },
+  // ];
   // -----------------
 
   return (
     <ScrollView style={styles.container}>
-      <Title style={styles.title}>DegenRank Details</Title>
+      <Title style={styles.title}>Your Stats</Title>
+
+      {isLoading && <ActivityIndicator style={{marginTop: 20}} size="large" />}
+      {isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
+
+      {stats && Object.keys(stats).map((platform) => (
+        <Card key={platform} style={styles.card}>
+          <Card.Title titleStyle={{textTransform: 'capitalize'}} title={`${platform}.fun`} />
+          <Card.Content>
+            <List.Item
+              title="PNL (SOL)"
+              description="Profit and Loss in SOL"
+              right={() => <Text variant="titleMedium" style={{color: stats[platform].pnl >= 0 ? 'green' : 'red'}}>{stats[platform].pnl.toFixed(4)} SOL</Text>}
+            />
+             <List.Item
+              title="Wins"
+              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{stats[platform].wins}</Text>}
+            />
+             <List.Item
+              title="Losses"
+              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{stats[platform].losses}</Text>}
+            />
+          </Card.Content>
+        </Card>
+      ))}
 
       <Card style={styles.card}>
-        <Card.Title title="Score par Plateforme" />
+        <Card.Title title="Recent Activity" />
         <Card.Content>
-          {scoreByPlatform.map((item, index) => (
-            <List.Item
-              key={index}
-              title={item.platform}
-              right={() => <Text variant="titleMedium">{item.score}</Text>}
-            />
-          ))}
-        </Card.Content>
-      </Card>
-
-      <Card style={styles.card}>
-        <Card.Title title="Historique des Points" />
-        <Card.Content>
-          {pointsHistory.map((item, index) => (
-            <List.Item
-              key={index}
-              title={item.reason}
-              description={item.date}
-              right={() => (
-                <Text
-                  variant="bodyLarge"
-                  style={{
-                    color: item.points.startsWith("+") ? "green" : "red",
-                  }}
-                >
-                  {item.points}
-                </Text>
-              )}
-            />
-          ))}
+          {isLoadingHistory && <ActivityIndicator />}
+          {isErrorHistory && <Text style={{textAlign: 'center', color: 'red'}}>Error fetching history.</Text>}
+          
+          {history && history.length > 0 ? (
+            history.map((item: any, index: number) => (
+              <List.Item
+                key={index}
+                title={`${item.is_win ? 'Win' : 'Loss'} on $${item.token_name.split('').slice(0, 6).join('')}...`}
+                description={`on ${item.platform}.fun - ${new Date(item.last_sell_at).toLocaleDateString()}`}
+                right={() => (
+                  <Text
+                    variant="bodyLarge"
+                    style={{
+                      color: item.is_win ? "green" : "red",
+                    }}
+                  >
+                    {item.pnl_sol >= 0 ? '+' : ''}{item.pnl_sol.toFixed(4)} SOL
+                  </Text>
+                )}
+              />
+            ))
+          ) : (
+            !isLoadingHistory && <Text style={{textAlign: 'center'}}>No recent activity found.</Text>
+          )}
         </Card.Content>
       </Card>
     </ScrollView>
