@@ -47,8 +47,8 @@ export function HomeScreen() {
   }, [userAddress, API_ENDPOINT]);
 
   const { data: leaderboardData, isLoading, isError, error } = useQuery({
-    queryKey: ['globalLeaderboard'],
-    queryFn: getGlobalLeaderboard,
+    queryKey: ['globalLeaderboard', userAddress],
+    queryFn: () => getGlobalLeaderboard(userAddress),
   });
 
   // On trouve les données de l'utilisateur courant dans le classement

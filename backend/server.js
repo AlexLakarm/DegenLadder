@@ -13,10 +13,53 @@ const port = process.env.PORT || 3000;
 app.use(cors()); // Activation de CORS pour toutes les routes
 app.use(express.json());
 
+// Helper function pour calculer le rang d'un utilisateur en temps réel
+async function calculateUserRank(userAddress) {
+  let totalDegenScore = 0;
+  let totalPnlSol = 0;
+  let totalWins = 0;
+  let totalLosses = 0;
+
+  for (const platform of ['pump', 'bonk']) {
+    const tableName = `trades_${platform}`;
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('degen_score, pnl_sol, status')
+      .eq('user_address', userAddress);
+
+    if (error) {
+      console.error(`Error fetching user data from ${tableName} for rank calculation:`, error);
+      continue;
+    }
+
+    if (data) {
+      data.forEach(trade => {
+        totalDegenScore += trade.degen_score;
+        totalPnlSol += trade.pnl_sol;
+        if (trade.status === 'WIN') {
+          totalWins++;
+        } else {
+          totalLosses++;
+        }
+      });
+    }
+  }
+
+  return {
+    user_address: userAddress,
+    total_degen_score: totalDegenScore,
+    total_pnl_sol: totalPnlSol,
+    total_wins: totalWins,
+    total_losses: totalLosses,
+  };
+}
+
 // Route pour récupérer le classement global depuis la vue
 app.get('/leaderboard/global', async (req, res) => {
+    const { currentUser } = req.query;
+
     try {
-        const { data, error } = await supabase
+        const { data: cachedLeaderboard, error } = await supabase
             .from('degen_rank') // On interroge notre nouvelle vue
             .select('*');
 
@@ -24,7 +67,34 @@ app.get('/leaderboard/global', async (req, res) => {
             throw error;
         }
 
-        res.status(200).json(data);
+        if (currentUser) {
+            console.log(`Fetching fresh data for user: ${currentUser}`);
+            const currentUserFreshData = await calculateUserRank(currentUser);
+            
+            // On cherche si l'utilisateur est déjà dans le classement cache
+            const userIndex = cachedLeaderboard.findIndex(u => u.user_address === currentUser);
+            
+            if (userIndex !== -1) {
+                // Si oui, on met à jour ses données
+                cachedLeaderboard[userIndex] = { ...cachedLeaderboard[userIndex], ...currentUserFreshData };
+            } else {
+                // Sinon (nouvel utilisateur), on l'ajoute
+                cachedLeaderboard.push(currentUserFreshData);
+            }
+
+            // Étape cruciale : re-trier le classement par score
+            cachedLeaderboard.sort((a, b) => b.total_degen_score - a.total_degen_score);
+            
+            // Et on ré-attribue les rangs
+            const finalLeaderboard = cachedLeaderboard.map((user, index) => ({
+                ...user,
+                rank: index + 1
+            }));
+            
+            return res.status(200).json(finalLeaderboard);
+        }
+
+        res.status(200).json(cachedLeaderboard);
 
     } catch (error) {
         console.error('Error fetching global leaderboard:', error);

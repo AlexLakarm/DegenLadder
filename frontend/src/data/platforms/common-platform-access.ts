@@ -98,12 +98,17 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
 } 
 
 // Nouvelle fonction pour le classement global
-export async function getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
+export async function getGlobalLeaderboard(currentUserAddress?: string): Promise<LeaderboardEntry[]> {
   const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
   if (!API_ENDPOINT) {
     throw new Error("API endpoint is not configured in app.json");
   }
-  const API_URL = `${API_ENDPOINT}/leaderboard/global`;
+  
+  let API_URL = `${API_ENDPOINT}/leaderboard/global`;
+  if (currentUserAddress) {
+    API_URL += `?currentUser=${currentUserAddress}`;
+  }
+
   console.log(`Fetching global leaderboard from API: ${API_URL}`);
   try {
     const response = await fetch(API_URL);
