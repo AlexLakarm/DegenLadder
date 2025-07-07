@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking } from "react-native";
-import { Text as PaperText, useTheme, Button } from "react-native-paper";
+import { Text as PaperText, useTheme, Button, SegmentedButtons } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import { getGlobalLeaderboard } from "../data/platforms/common-platform-access";
@@ -17,6 +17,7 @@ import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
 export function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const [sortBy, setSortBy] = useState('degen_score');
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
   // const userAddress = MOCK_USER_ADDRESS;
@@ -50,8 +51,8 @@ export function HomeScreen() {
   }, [userAddress, API_ENDPOINT]);
 
   const { data: leaderboardData, isLoading, isError, error } = useQuery({
-    queryKey: ['globalLeaderboard', userAddress],
-    queryFn: () => getGlobalLeaderboard(userAddress),
+    queryKey: ['globalLeaderboard', userAddress, sortBy],
+    queryFn: () => getGlobalLeaderboard(userAddress, sortBy),
   });
 
   // On trouve les données de l'utilisateur courant dans le classement
@@ -139,13 +140,25 @@ export function HomeScreen() {
             </View>
           )}
 
-          {/* Titre Leaderboard */}
-          <PaperText variant="headlineSmall" style={styles.sectionTitle}>
-            Leaderboard
-          </PaperText>
+          <View style={styles.leaderboardHeader}>
+            <PaperText variant="headlineSmall" style={styles.sectionTitle}>
+              Leaderboard
+            </PaperText>
+          </View>
+          
+          <SegmentedButtons
+            value={sortBy}
+            onValueChange={setSortBy}
+            style={{ marginBottom: 16 }}
+            buttons={[
+              { value: 'degen_score', label: 'Score' },
+              { value: 'pnl', label: 'PNL (SOL)' },
+              { value: 'win_rate', label: 'Win Rate' },
+            ]}
+          />
 
           {/* Liste du classement global (Top 10) - Toujours visible */}
-          <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} />
+          <GlobalLeaderboardFeature data={leaderboardData?.slice(0, 10) ?? []} />
 
           {/* Section "Your Position" - Conditionnelle */}
           {userAddress && currentUserData && (
@@ -203,5 +216,10 @@ const styles = StyleSheet.create({
   signInContainer: {
     alignItems: 'center',
     marginVertical: 40,
-  }
+  },
+  leaderboardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 });

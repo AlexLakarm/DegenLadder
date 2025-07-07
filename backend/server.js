@@ -55,12 +55,23 @@ async function calculateUserRank(userAddress) {
 
 // Route pour récupérer le classement global depuis la vue
 app.get('/leaderboard/global', async (req, res) => {
-    const { currentUser } = req.query;
+    const { currentUser, sortBy } = req.query;
+    console.log(`Leaderboard requested with sort by: ${sortBy}`);
+
+    // Liste blanche des colonnes autorisées pour le tri
+    const allowedSortColumns = {
+        'degen_score': 'total_degen_score',
+        'pnl': 'total_pnl_sol',
+        'win_rate': 'win_rate'
+    };
+    // Par défaut, on trie par degen_score si le paramètre est invalide ou absent
+    const sortColumn = allowedSortColumns[sortBy] || 'total_degen_score'; 
 
     try {
         const { data: cachedLeaderboard, error } = await supabase
             .from('degen_rank') // On interroge notre nouvelle vue
-            .select('*');
+            .select('*')
+            .order(sortColumn, { ascending: false }); // Tri dynamique
 
         if (error) {
             throw error;
@@ -81,8 +92,8 @@ app.get('/leaderboard/global', async (req, res) => {
                 cachedLeaderboard.push(currentUserFreshData);
             }
 
-            // Étape cruciale : re-trier le classement par score
-            cachedLeaderboard.sort((a, b) => b.total_degen_score - a.total_degen_score);
+            // Étape cruciale : re-trier le classement par le critère de tri demandé
+            cachedLeaderboard.sort((a, b) => (b[sortColumn] || 0) - (a[sortColumn] || 0));
             
             // Et on ré-attribue les rangs
             const finalLeaderboard = cachedLeaderboard.map((user, index) => ({

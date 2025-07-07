@@ -98,23 +98,25 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
 } 
 
 // Nouvelle fonction pour le classement global
-export async function getGlobalLeaderboard(currentUserAddress?: string): Promise<LeaderboardEntry[]> {
-  const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
-  if (!API_ENDPOINT) {
-    throw new Error("API endpoint is not configured in app.json");
-  }
-  
-  let API_URL = `${API_ENDPOINT}/leaderboard/global`;
-  if (currentUserAddress) {
-    API_URL += `?currentUser=${currentUserAddress}`;
-  }
-
-  console.log(`Fetching global leaderboard from API: ${API_URL}`);
+export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score'): Promise<LeaderboardEntry[]> {
   try {
-    const response = await fetch(API_URL);
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
+    const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+    if (!API_ENDPOINT) {
+      throw new Error("API endpoint is not configured");
     }
+
+    let API_URL = `${API_ENDPOINT}/leaderboard/global?sortBy=${sortBy}`;
+    if (currentUserAddress) {
+      API_URL += `&currentUser=${currentUserAddress}`;
+    }
+
+    const response = await fetch(API_URL);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
     const dataFromApi = await response.json();
     
     // La vue SQL nous donne la plupart des champs, on doit juste les mapper correctement
