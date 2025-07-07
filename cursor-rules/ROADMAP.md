@@ -2,12 +2,12 @@
 
 Voici la liste des prochaines étapes de développement, classées par ordre de priorité.
 
-### 1. Finaliser l'Authentification et Tester sur Mobile
+### 1. Finaliser l'Authentification et Tester sur Mobile - ✅ DONE
 - **Objectif**: Remplacer l'adresse de test (mock) par le véritable flux d'authentification en utilisant `useAuthorization`.
 - **Action Clé**: S'assurer que l'application est pleinement fonctionnelle pour un utilisateur se connectant avec un portefeuille mobile (ex: Phantom).
 - **Étape Suivante**: Relancer un build de l'application Expo (`eas build`) pour permettre les tests sur un vrai appareil mobile.
 
-### 2. Mettre en Place la `MATERIALIZED VIEW`
+### 2. Mettre en Place la `MATERIALIZED VIEW` - ✅ DONE
 - **Objectif**: Garantir des temps de chargement quasi instantanés pour le leaderboard, même avec une forte augmentation du nombre d'utilisateurs.
 - **Action Clé**: Remplacer la `VIEW` SQL actuelle (`degen_rank`) par une `MATERIALIZED VIEW`.
 - **Stratégie**: Mettre en place un mécanisme de rafraîchissement périodique (par exemple, via un cron job ou une fonction Supabase) toutes les 5 à 10 minutes.
