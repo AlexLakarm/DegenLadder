@@ -22,8 +22,8 @@ app.get('/leaderboard/global', async (req, res) => {
         res.status(200).json(data);
 
     } catch (error) {
-        console.error(`Error fetching global leaderboard:`, error.message);
-        res.status(500).json({ error: 'An internal server error occurred.' });
+        console.error('Error fetching global leaderboard:', error);
+        res.status(500).json({ error: 'Failed to fetch global leaderboard' });
     }
 });
 
