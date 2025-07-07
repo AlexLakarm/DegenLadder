@@ -174,8 +174,25 @@ async function analyzeAndStoreTrades(address, platform) {
   }
 }
 
-// --- POINT D'ENTRÉE DU SCRIPT ---
-async function main() {
+// Nouvelle fonction pour récupérer tous les utilisateurs uniques depuis les tables de trades
+async function getTrackedUsers() {
+  console.log("Fetching unique users from 'users' table...");
+  
+  const { data: users, error } = await supabase.from('users').select('address');
+
+  if (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+
+  const userAddresses = users.map(u => u.address);
+  console.log(`Found ${userAddresses.length} unique users to track.`);
+  return userAddresses;
+}
+
+// --- POINT D'ENTRÉE DE LA LOGIQUE DU WORKER ---
+// Renommée pour être plus explicite
+async function runWorkerLogic() {
   // Vérification des variables d'environnement
   if (!HELIUS_API_KEY) {
     console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
@@ -183,14 +200,26 @@ async function main() {
     return;
   }
 
-  const testAddress = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
-  const platform = "bonk";
+  console.log("--- Worker logic starting ---");
+  const usersToTrack = await getTrackedUsers();
 
-  try {
-    await analyzeAndStoreTrades(testAddress, platform);
-  } catch (error) {
-    console.error("Une erreur est survenue lors de l'exécution du script:", error.message);
+  for (const user of usersToTrack) {
+    console.log(`\n--- Processing user: ${user} ---`);
+    // On analyse les trades pour les deux plateformes pour chaque utilisateur
+    try {
+      await analyzeAndStoreTrades(user, 'pump');
+      await analyzeAndStoreTrades(user, 'bonk');
+    } catch (error) {
+      console.error(`Failed to process user ${user}. Error: ${error.message}`);
+    }
   }
+
+  console.log("\n--- Worker logic finished a cycle ---");
 }
 
-main(); 
+// On exporte la logique pour pouvoir l'appeler depuis server.js
+module.exports = {
+  analyzeAndStoreTrades,
+  getFullHistory,
+  runWorkerLogic
+}; 

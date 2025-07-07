@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Text } from "react-native";
 import { Text as PaperText, useTheme } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeader
 import { LeaderboardList } from "../components/leaderboard/LeaderboardList";
 import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
+import Constants from 'expo-constants';
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
@@ -16,6 +17,34 @@ export function HomeScreen() {
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
   // const userAddress = MOCK_USER_ADDRESS;
+
+  const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+
+  useEffect(() => {
+    const registerUser = async () => {
+      if (userAddress && API_ENDPOINT) {
+        try {
+          console.log(`Registering user ${userAddress}...`);
+          const response = await fetch(`${API_ENDPOINT}/user/connect`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ address: userAddress }),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to register user');
+          }
+          console.log("User registered or already exists.");
+        } catch (error) {
+          console.error("Error connecting user:", error);
+        }
+      }
+    };
+
+    registerUser();
+  }, [userAddress, API_ENDPOINT]);
 
   const { data: leaderboardData, isLoading, isError, error } = useQuery({
     queryKey: ['globalLeaderboard'],

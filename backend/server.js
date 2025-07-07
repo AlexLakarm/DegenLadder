@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const supabase = require('./lib/supabaseClient');
+const leaderboardRoutes = require('./routes/leaderboard');
+const { runWorkerLogic } = require('./worker'); // Importer la logique du worker
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -143,6 +145,57 @@ app.get('/user/:userAddress/history', async (req, res) => {
         console.error(`An unexpected error occurred while fetching user history for ${userAddress}:`, error.message);
         res.status(500).json({ error: 'An internal server error occurred.' });
     }
+});
+
+// Nouvelle route pour gérer la connexion d'un utilisateur
+app.post('/user/connect', async (req, res) => {
+  const { address } = req.body;
+
+  if (!address) {
+    return res.status(400).json({ error: 'User address is required' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .upsert({ address: address }, { onConflict: 'address' });
+
+    if (error) {
+      // Gérer les erreurs potentielles de la base de données
+      console.error('Supabase error on user connect:', error.message);
+      return res.status(500).json({ error: 'Failed to save user address' });
+    }
+
+    res.status(200).json({ message: 'User connected successfully' });
+  } catch (error) {
+    console.error('Server error on user connect:', error);
+    res.status(500).json({ error: 'An internal server error occurred' });
+  }
+});
+
+// Nouvelle route pour le cron job
+app.post('/api/cron/run-worker', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    console.error("CRON_SECRET is not set in environment variables.");
+    return res.status(500).json({ error: 'Internal server configuration error' });
+  }
+  
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // On n'attend pas la fin du worker pour répondre, car il peut être long.
+    // Le cron job n'a besoin que de savoir si la tâche a bien été lancée.
+    runWorkerLogic();
+    res.status(202).json({ message: 'Worker logic initiated.' });
+  } catch (error) {
+    console.error('Failed to initiate worker logic:', error);
+    res.status(500).json({ error: 'Failed to start worker logic' });
+  }
 });
 
 app.listen(port, () => {
