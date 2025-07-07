@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
 import { Card, List, Text, Title, useTheme } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
 import { Platform, PlatformColor } from "react-native";
+import { useRoute } from '@react-navigation/native';
 import { useAuthorization } from "../utils/useAuthorization";
 import Constants from "expo-constants";
 
@@ -34,8 +35,15 @@ async function fetchUserHistory(userAddress: string) {
 
 export default function DetailsScreen() {
   const theme = useTheme();
+  const route = useRoute();
   const { selectedAccount } = useAuthorization();
-  const userAddress = selectedAccount?.publicKey.toBase58();
+
+  // On priorise l'adresse passée en paramètre, sinon on prend celle de l'utilisateur connecté
+  // @ts-ignore
+  const addressFromRoute = route.params?.userAddress;
+  const loggedInUserAddress = selectedAccount?.publicKey.toBase58();
+  const userAddress = addressFromRoute || loggedInUserAddress;
+  const isMyOwnProfile = userAddress === loggedInUserAddress;
 
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['userStats', userAddress],
@@ -60,7 +68,7 @@ export default function DetailsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Title style={styles.title}>Your Stats</Title>
+      <Title style={styles.title}>{isMyOwnProfile ? 'Your Stats' : 'User Stats'}</Title>
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>

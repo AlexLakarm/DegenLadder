@@ -4,7 +4,6 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const supabase = require('./lib/supabaseClient');
-const leaderboardRoutes = require('./routes/leaderboard');
 const { runWorkerLogic } = require('./worker'); // Importer la logique du worker
 
 const app = express();

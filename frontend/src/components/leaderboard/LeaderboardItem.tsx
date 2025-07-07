@@ -1,6 +1,7 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Text, useTheme } from "react-native-paper";
+import { useNavigation } from '@react-navigation/native';
 import { LeaderboardEntry } from "../../data/leaderboard-data-access";
 import { ellipsify } from "../../utils/ellipsify";
 import MaterialCommunityIcon from "@expo/vector-icons/MaterialCommunityIcons";
@@ -12,6 +13,7 @@ interface LeaderboardItemProps {
 
 export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItemProps) {
   const theme = useTheme();
+  const navigation = useNavigation();
   const profit = item.pnl_sol;
   const displayProfit = typeof profit === 'number' && !isNaN(profit) ? profit.toFixed(4) : '...';
 
@@ -36,8 +38,13 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
     return "minus";
   }
 
+  const handlePress = () => {
+    // @ts-ignore - On sait que la navigation vers DetailsScreen existe
+    navigation.navigate('Details', { userAddress: item.user_address });
+  };
+
   return (
-    <View style={containerStyle}>
+    <TouchableOpacity onPress={handlePress} style={containerStyle}>
       <View style={styles.rankContainer}>
         <Text style={[styles.rank, { color: theme.colors.onSurface }]}>
           #{item.rank}
@@ -72,7 +79,7 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
