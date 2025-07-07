@@ -5,19 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import { getGlobalLeaderboard } from "../data/platforms/common-platform-access";
 import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeaderboardFeature";
 import { LeaderboardList } from "../components/leaderboard/LeaderboardList";
-// import { useAuthorization } from "../utils/useAuthorization";
+import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
-const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
+// const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
 
 export function HomeScreen() {
   const theme = useTheme();
-  // const { selectedAccount } = useAuthorization();
-  // const userAddress = selectedAccount?.publicKey.toBase58();
-  const userAddress = MOCK_USER_ADDRESS;
+  const { selectedAccount } = useAuthorization();
+  const userAddress = selectedAccount?.publicKey.toBase58();
+  // const userAddress = MOCK_USER_ADDRESS;
 
-  const { data: leaderboardData, isLoading, isError } = useQuery({
+  const { data: leaderboardData, isLoading, isError, error } = useQuery({
     queryKey: ['globalLeaderboard'],
     queryFn: getGlobalLeaderboard,
   });
@@ -45,19 +45,31 @@ export function HomeScreen() {
 
       {isLoading && <ActivityIndicator size="large" />}
       
-      {isError && <Text>Error loading data.</Text>}
+      {isError && <Text>Error loading data. {error.message}</Text>}
 
       {leaderboardData && (
         <>
-          {/* Section Résumé Utilisateur - Toujours visible pour le test */}
-          <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
-              {currentUserData?.degen_score ?? '--'} pts
-            </PaperText>
-            <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
-            </PaperText>
-          </View>
+          {/* Section Résumé Utilisateur - Conditionnelle */}
+          {userAddress && currentUserData && (
+            <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
+                {currentUserData?.degen_score ?? '--'} pts
+              </PaperText>
+              <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
+              </PaperText>
+            </View>
+          )}
+
+          {/* Si non connecté, afficher les boutons de connexion */}
+          {!userAddress && !isLoading && (
+            <View style={styles.signInContainer}>
+              <PaperText variant="bodyLarge" style={{textAlign: 'center', marginBottom: 16}}>
+                Connect your wallet to see your rank and position.
+              </PaperText>
+              <SignInFeature />
+            </View>
+          )}
 
           {/* Titre Leaderboard */}
           <PaperText variant="headlineSmall" style={styles.sectionTitle}>
@@ -67,22 +79,24 @@ export function HomeScreen() {
           {/* Liste du classement global (Top 10) - Toujours visible */}
           <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} />
 
-          {/* Section "Your Position" - Toujours visible pour le test */}
-          <>
-            {/* Titre Your Position */}
-            <PaperText variant="headlineSmall" style={styles.sectionTitle}>
-              Your Position
-            </PaperText>
+          {/* Section "Your Position" - Conditionnelle */}
+          {userAddress && currentUserData && (
+            <>
+              {/* Titre Your Position */}
+              <PaperText variant="headlineSmall" style={styles.sectionTitle}>
+                Your Position
+              </PaperText>
 
-            {/* Section de la position de l'utilisateur */}
-            {yourPositionData.length > 0 ? (
-              <LeaderboardList data={yourPositionData} currentUserAddress={userAddress} />
-            ) : (
-              <Text style={{textAlign: 'center', marginVertical: 20}}>
-                Your rank will appear here once you start trading.
-              </Text>
-            )}
-          </>
+              {/* Section de la position de l'utilisateur */}
+              {yourPositionData.length > 0 ? (
+                <LeaderboardList data={yourPositionData} currentUserAddress={userAddress} />
+              ) : (
+                <Text style={{textAlign: 'center', marginVertical: 20}}>
+                  Your rank will appear here once you start trading.
+                </Text>
+              )}
+            </>
+          )}
         </>
       )}
     </ScrollView>
