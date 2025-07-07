@@ -32,6 +32,7 @@ Le projet est un monorepo structuré comme suit :
 - **Logique Clé**: 
     - Le frontend appelle l'API du backend pour récupérer les données.
     - Lors d'une connexion réussie, il appelle l'endpoint `/user/connect` pour s'assurer que l'adresse de l'utilisateur est bien enregistrée côté serveur.
+    - Le leaderboard est interactif : un clic sur un utilisateur dans le classement redirige vers sa page de détails (`DetailsScreen`).
 
 ## 5. Base de Données (Supabase)
 

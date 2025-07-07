@@ -22,7 +22,7 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 - **Action Clé**: Lancer manuellement le worker pour une liste d'adresses Solana fournies afin de peupler les tables `trades_pump` et `trades_bonk`.
 - **Stratégie**: Modifier temporairement le worker pour qu'il traite une liste d'adresses codée en dur.
 
-### 5. Rendre le Leaderboard Interactif
+### 5. Rendre le Leaderboard Interactif - ✅ DONE
 - **Objectif**: Augmenter l'engagement et l'exploration au sein de l'application.
 - **Action Clé**: Rendre chaque ligne du leaderboard sur la page d'accueil cliquable.
 - **Navigation**: Un clic sur un utilisateur doit rediriger vers sa page de détails personnelle.
