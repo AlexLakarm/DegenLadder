@@ -6,6 +6,7 @@ import { Platform, PlatformColor } from "react-native";
 import { useRoute } from '@react-navigation/native';
 import { useAuthorization } from "../utils/useAuthorization";
 import Constants from "expo-constants";
+import { DetailsScreenRouteProp } from '../navigators/HomeNavigator';
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -35,15 +36,18 @@ async function fetchUserHistory(userAddress: string) {
 
 export default function DetailsScreen() {
   const theme = useTheme();
-  const route = useRoute();
+  const route = useRoute<DetailsScreenRouteProp>();
   const { selectedAccount } = useAuthorization();
 
-  // On priorise l'adresse passée en paramètre, sinon on prend celle de l'utilisateur connecté
+  // Priorité 1: Adresse passée en paramètre (navigation depuis le leaderboard)
   // @ts-ignore
   const addressFromRoute = route.params?.userAddress;
-  const loggedInUserAddress = selectedAccount?.publicKey.toBase58();
-  const userAddress = addressFromRoute || loggedInUserAddress;
-  const isMyOwnProfile = userAddress === loggedInUserAddress;
+  // Priorité 2: Adresse de l'utilisateur connecté
+  // Priorité 3: undefined si aucune des deux n'est disponible
+  const userAddress = addressFromRoute || selectedAccount?.publicKey.toBase58();
+
+  // On détermine si le profil affiché est celui de l'utilisateur connecté
+  const isMyOwnProfile = userAddress === selectedAccount?.publicKey.toBase58();
 
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['userStats', userAddress],

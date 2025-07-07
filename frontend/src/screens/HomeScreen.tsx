@@ -1,19 +1,22 @@
 import React, { useEffect } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Text } from "react-native";
-import { Text as PaperText, useTheme } from "react-native-paper";
+import { Text as PaperText, useTheme, Button } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigation } from "@react-navigation/native";
 import { getGlobalLeaderboard } from "../data/platforms/common-platform-access";
 import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeaderboardFeature";
 import { LeaderboardList } from "../components/leaderboard/LeaderboardList";
 import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
+import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
 
 export function HomeScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
   // const userAddress = MOCK_USER_ADDRESS;
@@ -80,14 +83,26 @@ export function HomeScreen() {
         <>
           {/* Section Résumé Utilisateur - Conditionnelle */}
           {userAddress && currentUserData && (
-            <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
-                {currentUserData?.degen_score ?? '--'} pts
-              </PaperText>
-              <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
-              </PaperText>
-            </View>
+            <>
+              <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
+                  {currentUserData?.degen_score ?? '--'} pts
+                </PaperText>
+                <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
+                </PaperText>
+              </View>
+              <View style={styles.actionButtonsContainer}>
+                <Button 
+                  icon="chart-line" 
+                  mode="contained-tonal" 
+                  onPress={() => navigation.navigate('Details', { userAddress: userAddress })}
+                  style={styles.actionButton}
+                >
+                  My Stats
+                </Button>
+              </View>
+            </>
           )}
 
           {/* Si non connecté, afficher les boutons de connexion */}
@@ -146,6 +161,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingVertical: 16,
     borderRadius: 12,
+  },
+  actionButtonsContainer: {
+    marginBottom: 24,
+  },
+  actionButton: {
+    flex: 1,
   },
   sectionTitle: {
     fontWeight: 'bold',

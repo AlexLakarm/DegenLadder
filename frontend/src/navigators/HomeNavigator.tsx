@@ -1,12 +1,21 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createBottomTabNavigator, BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import React from "react";
 import { TopBar } from "../components/top-bar/top-bar-feature";
 import { HomeScreen } from "../screens/HomeScreen";
 import MaterialCommunityIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTheme } from "react-native-paper";
 import DetailsScreen from "../screens/DetailsScreen";
+import { RouteProp } from "@react-navigation/native";
 
-const Tab = createBottomTabNavigator();
+export type HomeTabParamList = {
+  Home: undefined;
+  Details: { userAddress?: string };
+};
+
+export type DetailsScreenRouteProp = RouteProp<HomeTabParamList, 'Details'>;
+export type HomeScreenNavigationProp = BottomTabNavigationProp<HomeTabParamList, 'Home'>;
+
+const Tab = createBottomTabNavigator<HomeTabParamList>();
 
 /**
  * This is the main navigator with a bottom tab bar.
@@ -45,7 +54,11 @@ export function HomeNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Details" component={DetailsScreen} />
+      <Tab.Screen 
+        name="Details" 
+        component={DetailsScreen} 
+        initialParams={{ userAddress: undefined }}
+      />
     </Tab.Navigator>
   );
 }
