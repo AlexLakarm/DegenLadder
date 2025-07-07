@@ -17,7 +17,7 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 - **Action Clé**: Modifier `worker.js` pour qu'il s'exécute en continu (avec `setInterval` ou une autre méthode de "cron job").
 - **Stratégie**: Le worker devra scanner les trades pour une liste d'utilisateurs récupérée depuis la table `users`, et non plus pour une seule adresse de test.
 
-### 4. Peupler la Base de Données
+### 4. Peupler la Base de Données - ✅ DONE
 - **Objectif**: Rendre le leaderboard plus réaliste et intéressant en ajoutant une variété d'adresses de traders.
 - **Action Clé**: Lancer manuellement le worker pour une liste d'adresses Solana fournies afin de peupler les tables `trades_pump` et `trades_bonk`.
 - **Stratégie**: Modifier temporairement le worker pour qu'il traite une liste d'adresses codée en dur.
