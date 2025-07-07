@@ -15,32 +15,39 @@ Le projet est un monorepo structuré comme suit :
 ## 3. Backend en Détail
 
 - **Technologie**: Node.js avec Express.js.
-- **`server.js`**: Expose une API REST simple pour le frontend. La route principale est `/leaderboard/:platform` qui sert les données pré-calculées depuis la base de données.
-- **`worker.js`**: C'est le cœur du backend. Il agit comme un service ETL (Extract, Transform, Load) :
-    - **Extract**: Il utilise l'API de **Helius** pour récupérer l'historique des transactions d'adresses Solana.
-    - **Transform**: Il analyse ces transactions, les agrège par jeton (mint) et calcule le PNL (Profit & Loss) pour chaque cycle de trade complet.
-    - **Load**: Il insère ou met à jour (upsert) les résultats de cette analyse dans la base de données Supabase.
+- **`server.js`**: Expose une API REST. Les routes principales sont :
+    - `/leaderboard/*`: Sert les données du classement depuis la base de données.
+    - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur dans la table `users` lors de sa première connexion. C'est un `upsert` qui évite les doublons.
+    - `/api/cron/run-worker` (POST): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour mettre à jour les données de tous les utilisateurs. Cet endpoint est destiné à être appelé par un service de cron externe (ex: Vercel Cron Jobs).
+- **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL :
+    - **Extract**: Récupère la liste de tous les utilisateurs depuis la table `users` de Supabase, puis utilise l'API de **Helius** pour récupérer leur historique de transactions.
+    - **Transform**: Analyse ces transactions, les agrège par jeton (mint) et calcule le PNL (Profit & Loss).
+    - **Load**: Insère ou met à jour les résultats dans les tables `trades_pump` et `trades_bonk`.
 
 ## 4. Frontend en Détail
 
 - **Technologie**: React Native avec Expo, écrit en TypeScript.
 - **Structure**: Le code source se trouve dans `frontend/src/`. Il utilise une navigation par écrans (`screens/`) et des composants réutilisables (`components/`).
 - **Fonctionnalité**: Le frontend appelle l'API du backend pour récupérer les données du leaderboard et les affiche à l'utilisateur.
+- **Logique Clé**: 
+    - Le frontend appelle l'API du backend pour récupérer les données.
+    - Lors d'une connexion réussie, il appelle l'endpoint `/user/connect` pour s'assurer que l'adresse de l'utilisateur est bien enregistrée côté serveur.
 
 ## 5. Base de Données (Supabase)
 
-La base de données contient 3 tables principales.
+La base de données contient 3 tables principales et une vue matérialisée.
 
 ### Table `users`
-Stocke les informations de base sur les utilisateurs.
-**Logique future**: Cette table sera peuplée à chaque fois qu'un nouvel utilisateur se connecte à l'application.
+Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker.
+**Logique**: Cette table est peuplée via l'endpoint `/user/connect` à chaque fois qu'un nouvel utilisateur se connecte.
 
 ```sql
 CREATE TABLE users (
   id bigint,
   address text,
   username text,
-  created_at timestamp
+  created_at timestamp,
+  PRIMARY KEY (address)
 );
 ```
 
@@ -67,18 +74,42 @@ CREATE TABLE trades_pump (
 ```
 La table `trades_bonk` est identique. 
 
-### Vue `degen_rank`
-Pour agréger les scores, une vue SQL (`VIEW`) est utilisée. Elle calcule le score total, le PNL et le nombre de trades pour chaque utilisateur en combinant les tables `trades_pump` et `trades_bonk`.
+### Vue Matérialisée `degen_rank`
+Pour garantir des temps de chargement rapides, le classement principal est une **vue matérialisée**. Elle agrège les scores, le PNL et le nombre de trades pour chaque utilisateur.
+**Automatisation**: Elle est rafraîchie automatiquement toutes les 10 minutes. (Voir la section "Automatisation et Monitoring").
 
-**Note sur la scalabilité**: Pour le développement, une `VIEW` standard est suffisante. En production, avec un grand nombre d'utilisateurs, il faudra la transformer en `MATERIALIZED VIEW` rafraîchie périodiquement (ex: toutes les 10 minutes) pour garantir des temps de réponse rapides.
-
-### Algorithme du "Degen Score" V1
+## 6. Algorithme du "Degen Score" V1
 Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la colonne `degen_score`.
 - **Trade Gagnant**: +10 points
 - **Trade Perdant**: -10 points
 - **Bonus PnL** (uniquement si PnL > 0): `50 * log(1 + pnl_en_sol)`
 
-## 6. Démarrage du Projet
+## 7. Automatisation et Monitoring
+
+Cette section détaille les processus automatisés du projet et comment vérifier leur bon fonctionnement.
+
+### 7.1. Rafraîchissement du Leaderboard
+- **Mécanisme**: Une tâche planifiée (`pg_cron`) directement dans la base de données Supabase.
+- **Fréquence**: Toutes les 10 minutes.
+- **Comment vérifier**:
+    - **Supabase UI**: Allez dans `Database` > `Cron`. La tâche `refresh-degen-rank` doit avoir un statut `succeeded`.
+    - **SQL**: Exécutez `SELECT * FROM cron.job_run_details WHERE jobname = 'refresh-degen-rank' ORDER BY start_time DESC;` pour voir l'historique détaillé.
+    - **Logs de la fonction**: Allez dans `Logs` > `Database Logs` et filtrez sur "Rafraîchissement". Vous devriez voir les messages de début et de fin de la fonction.
+
+### 7.2. Mise à jour des Données de Trades (Worker)
+- **Mécanisme**: Un service de Cron externe (ex: Vercel Cron Jobs) doit être configuré pour appeler l'endpoint `POST /api/cron/run-worker`.
+- **Fréquence**: Toutes les 15 minutes (recommandé).
+- **Comment vérifier**:
+    - **Tableau de bord du service Cron (Vercel)**: Vérifiez que les appels à l'API retournent un code `202 Accepted`.
+    - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Worker logic initiated."` à chaque appel, suivi du détail du traitement de chaque utilisateur.
+
+### 7.3. Enregistrement des Nouveaux Utilisateurs
+- **Mécanisme**: Le frontend appelle l'endpoint `POST /user/connect` lors de la connexion.
+- **Comment vérifier**:
+    - **Logs du Backend**: Les logs du serveur afficheront `"User connected successfully"` pour chaque nouvel enregistrement.
+    - **Base de données**: Vérifiez directement la table `users` dans Supabase pour vous assurer que les nouvelles adresses y sont ajoutées.
+
+## 8. Démarrage du Projet
 
 Pour lancer l'application, suivez ces étapes dans deux terminaux séparés depuis la racine du projet.
 
