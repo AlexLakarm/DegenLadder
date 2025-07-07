@@ -17,12 +17,10 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 - **Action Clé**: Modifier `worker.js` pour qu'il s'exécute en continu (avec `setInterval` ou une autre méthode de "cron job").
 - **Stratégie**: Le worker devra scanner les trades pour une liste d'utilisateurs récupérée depuis la table `users`, et non plus pour une seule adresse de test.
 
-### 4. Mettre en Place les Niveaux d'Utilisateurs (Basic/Pro)
-- **Objectif**: Créer un modèle de monétisation pour l'application.
-- **Action Clé**: Implémenter un système à deux niveaux :
-    - **Basic**: Accès limité à l'onglet "Home".
-    - **Pro**: Accès à toutes les fonctionnalités, pour un coût de 0.1 SOL.
-- **Technologie**: Cela nécessitera la création d'une instruction sur la blockchain via Anchor pour gérer le paiement et la mise à jour du statut de l'utilisateur.
+### 4. Peupler la Base de Données
+- **Objectif**: Rendre le leaderboard plus réaliste et intéressant en ajoutant une variété d'adresses de traders.
+- **Action Clé**: Lancer manuellement le worker pour une liste d'adresses Solana fournies afin de peupler les tables `trades_pump` et `trades_bonk`.
+- **Stratégie**: Modifier temporairement le worker pour qu'il traite une liste d'adresses codée en dur.
 
 ### 5. Rendre le Leaderboard Interactif
 - **Objectif**: Augmenter l'engagement et l'exploration au sein de l'application.
@@ -32,4 +30,19 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 ### 6. Ajouter des Filtres sur le Leaderboard
 - **Objectif**: Offrir plus de contrôle et de granularité dans l'analyse des données.
 - **Action Clé**: Ajouter des options de tri au leaderboard.
-- **Filtres possibles**: "Degen Score", "PNL total (SOL)", "Taux de victoire (%)", "Meilleur trade (PNL)". 
+- **Filtres possibles**: "Degen Score", "PNL total (SOL)", "Taux de victoire (%)", "Meilleur trade (PNL)".
+
+### 7. Déployer et Configurer le Cron Job sur Vercel
+- **Objectif**: Assurer que la mise à jour des données de trade est entièrement automatisée en production.
+- **Action Clé**: Déployer le backend sur Vercel et configurer un "Cron Job" pour appeler l'endpoint `/api/cron/run-worker`.
+- **Stratégie**: Utiliser le tableau de bord Vercel pour créer le job, en fournissant l'URL de l'endpoint et le `CRON_SECRET` comme variable d'environnement.
+
+### 8. Mettre en Place les Niveaux d'Utilisateurs (Basic/Pro)
+- **Objectif**: Créer un modèle de monétisation pour l'application.
+- **Action Clé**: Implémenter un système à deux niveaux :
+    - **Basic**: Accès limité à l'onglet "Home".
+    - **Pro**: Accès à toutes les fonctionnalités, pour un coût de 0.1 SOL.
+- **Technologie**: Cela nécessitera la création d'une instruction sur la blockchain via Anchor pour gérer le paiement et la mise à jour du statut de l'utilisateur. 
+Cela a déjà été fait sur la bdd :
+ALTER TABLE public.users
+ADD COLUMN plan TEXT DEFAULT 'basic' NOT NULL;
