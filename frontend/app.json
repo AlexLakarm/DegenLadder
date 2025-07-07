@@ -30,8 +30,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "1d86e96a-0d8b-4c74-8902-6134064390f7"
+        "projectId": "ffcf1e09-8cff-43e1-9970-b6638b36aa19"
       },
+      "apiEndpoint": "http://192.168.136.214:3000",
       "solanaRpcEndpoint": "https://devnet.helius-rpc.com/?api-key=45632608-06df-46c4-82b3-1589feabe0fc"
     }
   }

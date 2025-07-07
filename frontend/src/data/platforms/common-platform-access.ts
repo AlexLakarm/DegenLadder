@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 // L'API Key Helius n'est plus nécessaire ici
 // const HELIUS_API_KEY = ...
 
@@ -11,8 +13,8 @@ export interface LeaderboardEntry {
   degen_score: number; // Ajout du degen_score
   status: 'WIN' | 'LOSS';
   // On peut ajouter d'autres champs si nécessaire
-  winningTrades?: number; // Ces champs ne sont plus directement dans la réponse principale
-  losingTrades?: number;  // On pourrait les calculer ou les ajouter à l'API plus tard
+  winningTrades: number; // Ces champs ne sont plus directement dans la réponse principale
+  losingTrades: number;  // On pourrait les calculer ou les ajouter à l'API plus tard
 }
 
 // L'ancienne interface PlatformActivity n'est plus utilisée
@@ -97,17 +99,20 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
 
 // Nouvelle fonction pour le classement global
 export async function getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
-  const API_URL = `http://localhost:3000/leaderboard/global`;
+  const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+  if (!API_ENDPOINT) {
+    throw new Error("API endpoint is not configured in app.json");
+  }
+  const API_URL = `${API_ENDPOINT}/leaderboard/global`;
   console.log(`Fetching global leaderboard from API: ${API_URL}`);
-
   try {
     const response = await fetch(API_URL);
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API returned an error: ${errorData.error || response.statusText}`);
+      throw new Error("Network response was not ok");
     }
     const dataFromApi = await response.json();
-    // La vue SQL nous donne déjà la plupart des champs, on doit juste les typer correctement
+    
+    // La vue SQL nous donne la plupart des champs, on doit juste les mapper correctement
     const leaderboard: LeaderboardEntry[] = dataFromApi.map((entry: any) => ({
       rank: entry.rank,
       user_address: entry.user_address,
@@ -120,11 +125,10 @@ export async function getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
       status: entry.total_pnl_sol > 0 ? 'WIN' : 'LOSS',
     }));
 
-    console.log(`Successfully fetched and processed ${leaderboard.length} global leaderboard entries.`);
     return leaderboard;
 
   } catch (error) {
-    console.error(`Failed to fetch global leaderboard from API:`, error);
-    return [];
+    console.error("Failed to fetch global leaderboard from API:", error);
+    throw error;
   }
-} 
+}
