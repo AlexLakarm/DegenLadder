@@ -12,7 +12,7 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 - **Action Clé**: Remplacer la `VIEW` SQL actuelle (`degen_rank`) par une `MATERIALIZED VIEW`.
 - **Stratégie**: Mettre en place un mécanisme de rafraîchissement périodique (par exemple, via un cron job ou une fonction Supabase) toutes les 5 à 10 minutes.
 
-### 3. Améliorer le Worker
+### 3. Améliorer le Worker - ✅ DONE
 - **Objectif**: Automatiser et étendre la collecte des données de trades.
 - **Action Clé**: Modifier `worker.js` pour qu'il s'exécute en continu (avec `setInterval` ou une autre méthode de "cron job").
 - **Stratégie**: Le worker devra scanner les trades pour une liste d'utilisateurs récupérée depuis la table `users`, et non plus pour une seule adresse de test.
