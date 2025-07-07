@@ -3,14 +3,19 @@ import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
 import { Card, List, Text, Title, useTheme } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
 import { Platform, PlatformColor } from "react-native";
+import { useAuthorization } from "../utils/useAuthorization";
+import Constants from "expo-constants";
+
+const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
 // On utilise la même adresse mockée que dans HomeScreen pour les tests
-const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
+// const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
 
 // Fonction pour fetch les stats
 async function fetchUserStats(userAddress: string) {
+  if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
   // Assurez-vous que l'URL correspond à votre configuration locale/de production
-  const response = await fetch(`http://localhost:3000/user/${userAddress}/stats`);
+  const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/stats`);
   if (!response.ok) {
     throw new Error('Network response was not ok');
   }
@@ -19,7 +24,8 @@ async function fetchUserStats(userAddress: string) {
 
 // Fonction pour fetch l'historique
 async function fetchUserHistory(userAddress: string) {
-  const response = await fetch(`http://localhost:3000/user/${userAddress}/history`);
+  if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
+  const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/history`);
   if (!response.ok) {
     throw new Error('Network response was not ok for history');
   }
@@ -28,14 +34,19 @@ async function fetchUserHistory(userAddress: string) {
 
 export default function DetailsScreen() {
   const theme = useTheme();
+  const { selectedAccount } = useAuthorization();
+  const userAddress = selectedAccount?.publicKey.toBase58();
+
   const { data: stats, isLoading, isError } = useQuery({
-    queryKey: ['userStats', MOCK_USER_ADDRESS],
-    queryFn: () => fetchUserStats(MOCK_USER_ADDRESS)
+    queryKey: ['userStats', userAddress],
+    queryFn: () => fetchUserStats(userAddress!),
+    enabled: !!userAddress, // La requête ne s'exécute que si userAddress existe
   });
 
   const { data: history, isLoading: isLoadingHistory, isError: isErrorHistory } = useQuery({
-    queryKey: ['userHistory', MOCK_USER_ADDRESS],
-    queryFn: () => fetchUserHistory(MOCK_USER_ADDRESS)
+    queryKey: ['userHistory', userAddress],
+    queryFn: () => fetchUserHistory(userAddress!),
+    enabled: !!userAddress, // La requête ne s'exécute que si userAddress existe
   });
 
   // --- Mock Data ---
@@ -51,8 +62,14 @@ export default function DetailsScreen() {
     <ScrollView style={styles.container}>
       <Title style={styles.title}>Your Stats</Title>
 
-      {isLoading && <ActivityIndicator style={{marginTop: 20}} size="large" />}
-      {isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
+      {!userAddress && (
+         <View style={{alignItems: 'center', marginTop: 40}}>
+            <Text>Connect your wallet to see your stats.</Text>
+         </View>
+      )}
+
+      {userAddress && isLoading && <ActivityIndicator style={{marginTop: 20}} size="large" />}
+      {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
 
       {stats && Object.keys(stats).map((platform) => (
         <Card key={platform} style={styles.card}>
@@ -78,8 +95,8 @@ export default function DetailsScreen() {
       <Card style={styles.card}>
         <Card.Title title="Recent Activity" />
         <Card.Content>
-          {isLoadingHistory && <ActivityIndicator />}
-          {isErrorHistory && <Text style={{textAlign: 'center', color: 'red'}}>Error fetching history.</Text>}
+          {userAddress && isLoadingHistory && <ActivityIndicator />}
+          {userAddress && isErrorHistory && <Text style={{textAlign: 'center', color: 'red'}}>Error fetching history.</Text>}
           
           {history && history.length > 0 ? (
             history.map((item: any, index: number) => (
@@ -100,7 +117,7 @@ export default function DetailsScreen() {
               />
             ))
           ) : (
-            !isLoadingHistory && <Text style={{textAlign: 'center'}}>No recent activity found.</Text>
+            userAddress && !isLoadingHistory && <Text style={{textAlign: 'center'}}>No recent activity found.</Text>
           )}
         </Card.Content>
       </Card>
