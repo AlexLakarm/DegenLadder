@@ -16,14 +16,33 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.solana.mobile.expo.template"
+      "bundleIdentifier": "com.solana.mobile.expo.template",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["https", "http"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.solana.mobile.expo.template"
+      "package": "com.solana.mobile.expo.template",
+      "queries": {
+        "intent": [
+          {
+            "action": "android.intent.action.VIEW",
+            "data": {
+              "scheme": "https"
+            }
+          },
+          {
+            "action": "android.intent.action.VIEW",
+            "data": {
+              "scheme": "http"
+            }
+          }
+        ]
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Text } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking } from "react-native";
 import { Text as PaperText, useTheme, Button } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -64,6 +64,21 @@ export function HomeScreen() {
     ? leaderboardData.slice(Math.max(0, currentUserIndex - 3), currentUserIndex + 4)
     : [];
 
+  const onPostToX = async () => {
+    if (!currentUserData) return;
+
+    const text = `I'm rank #${currentUserData.rank} on DegenRank with a degen score of ${currentUserData.degen_score} points! See how you stack up. #DegenRank #Solana\n\nJoin me by downloading the app here: [LINK_TO_UPDATE]`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Failed to open URL:', error);
+      // Vous pouvez décommenter cette ligne pour afficher une alerte à l'utilisateur
+      // Alert.alert("Error", "Could not open Twitter. Please make sure the app is installed or try again.");
+    }
+  };
+
   return (
     <ScrollView style={styles.screenContainer}>
       <View style={styles.headerContainer}>
@@ -100,6 +115,15 @@ export function HomeScreen() {
                   style={styles.actionButton}
                 >
                   My Stats
+                </Button>
+                <Button 
+                  icon="twitter" 
+                  mode="contained-tonal" 
+                  onPress={onPostToX}
+                  style={styles.actionButton}
+                  disabled={!currentUserData}
+                >
+                  Post to X
                 </Button>
               </View>
             </>
@@ -158,15 +182,18 @@ const styles = StyleSheet.create({
   },
   summaryContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
     paddingVertical: 16,
     borderRadius: 12,
   },
   actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     marginBottom: 24,
   },
   actionButton: {
     flex: 1,
+    marginHorizontal: 8,
   },
   sectionTitle: {
     fontWeight: 'bold',
