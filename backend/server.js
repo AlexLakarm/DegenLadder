@@ -4,7 +4,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const supabase = require('./lib/supabaseClient');
-const { runWorkerLogic } = require('./worker'); // Importer la logique du worker
+const { runWorker } = require('./worker'); // Importer la logique du worker renommée
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -230,57 +230,68 @@ app.get('/user/:userAddress/history', async (req, res) => {
     }
 });
 
-// Nouvelle route pour gérer la connexion d'un utilisateur
+// Route pour l'enregistrement ou la connexion d'un utilisateur
 app.post('/user/connect', async (req, res) => {
-  const { address } = req.body;
-
-  if (!address) {
-    return res.status(400).json({ error: 'User address is required' });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .upsert({ address: address }, { onConflict: 'address' });
-
-    if (error) {
-      // Gérer les erreurs potentielles de la base de données
-      console.error('Supabase error on user connect:', error.message);
-      return res.status(500).json({ error: 'Failed to save user address' });
-    }
-
-    res.status(200).json({ message: 'User connected successfully' });
-  } catch (error) {
-    console.error('Server error on user connect:', error);
-    res.status(500).json({ error: 'An internal server error occurred' });
-  }
-});
-
-// Nouvelle route pour le cron job
-app.post('/api/cron/run-worker', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("CRON_SECRET is not set in environment variables.");
-    return res.status(500).json({ error: 'Internal server configuration error' });
-  }
+    const { address } = req.body;
   
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+    if (!address) {
+      return res.status(400).json({ error: 'User address is required.' });
+    }
+  
+    try {
+      // Upsert pour éviter les doublons. 
+      // Si l'adresse existe, rien ne se passe. Sinon, elle est insérée.
+      const { data, error } = await supabase
+        .from('users')
+        .upsert({ address: address }, { onConflict: 'address' });
+  
+      if (error) {
+        throw error;
+      }
+  
+      console.log(`User connected successfully: ${address}.`);
+      
+      // Lancer le scan initial pour ce nouvel utilisateur en tâche de fond.
+      // On n'utilise PAS 'await' pour que la réponse soit immédiate.
+      console.log(`Initiating initial scan for address: ${address}`);
+      runWorker(address);
+  
+      res.status(200).json({ message: 'User connected successfully.' });
+  
+    } catch (error) {
+      console.error('Error in /user/connect:', error);
+      res.status(500).json({ error: 'An internal server error occurred.' });
+    }
+  });
 
-  try {
-    // On n'attend pas la fin du worker pour répondre, car il peut être long.
-    // Le cron job n'a besoin que de savoir si la tâche a bien été lancée.
-    runWorkerLogic();
-    res.status(202).json({ message: 'Worker logic initiated.' });
-  } catch (error) {
-    console.error('Failed to initiate worker logic:', error);
-    res.status(500).json({ error: 'Failed to start worker logic' });
-  }
-});
+
+// --- ENDPOINT POUR LE CRON JOB ---
+app.post('/api/cron/run-worker', (req, res) => {
+    // Sécurisation de l'endpoint
+    const authHeader = req.headers['authorization'];
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).send('Unauthorized');
+    }
+  
+    // On lance la logique du worker en tâche de fond et on répond immédiatement
+    console.log("Cron job received. Worker logic initiated for all users.");
+    runWorker(); // Appel sans adresse pour le scan global
+  
+    res.status(202).send('Accepted: Worker process started.');
+  });
+
 
 app.listen(port, () => {
-    console.log(`API Server listening on port ${port}`);
-}); 
+    console.log(`Server is running on port ${port}`);
+});
+
+// --- ANCIENNE LOGIQUE DE WORKER AUTONOME MISE EN COMMENTAIRE ---
+// setInterval(async () => {
+//     console.log('--- Starting periodic worker logic ---');
+//     try {
+//         await runWorkerLogic();
+//         console.log('--- Finished periodic worker logic ---');
+//     } catch (error) {
+//         console.error('Error during periodic worker execution:', error);
+//     }
+// }, 10 * 60 * 1000); // Toutes les 10 minutes 

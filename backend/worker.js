@@ -191,35 +191,56 @@ async function getTrackedUsers() {
 }
 
 // --- POINT D'ENTRÉE DE LA LOGIQUE DU WORKER ---
-// Renommée pour être plus explicite
-async function runWorkerLogic() {
+// La fonction peut maintenant être ciblée sur un seul utilisateur
+// ou fonctionner en mode global si aucun userAddress n'est fourni.
+async function runWorker(userAddress = null) {
   // Vérification des variables d'environnement
   if (!HELIUS_API_KEY) {
     console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
     console.log("Veuillez vous assurer que votre fichier .env est correctement configuré.");
     return;
   }
+  
+  console.log("--- Lancement du Worker ---");
+  
+  let usersToProcess = [];
 
-  console.log("--- Worker logic starting ---");
-  const usersToTrack = await getTrackedUsers();
-
-  for (const user of usersToTrack) {
-    console.log(`\n--- Processing user: ${user} ---`);
-    // On analyse les trades pour les deux plateformes pour chaque utilisateur
-  try {
-      await analyzeAndStoreTrades(user, 'pump');
-      await analyzeAndStoreTrades(user, 'bonk');
-  } catch (error) {
-      console.error(`Failed to process user ${user}. Error: ${error.message}`);
+  if (userAddress) {
+    console.log(`Mode ciblé : Traitement de l'utilisateur ${userAddress}`);
+    usersToProcess.push(userAddress);
+  } else {
+    console.log("Mode global : Traitement de tous les utilisateurs suivis.");
+    usersToProcess = await getTrackedUsers();
   }
+
+  if (usersToProcess.length === 0) {
+    console.log("Aucun utilisateur à traiter. Fin du worker.");
+    return;
+  }
+
+  // Traiter chaque utilisateur
+  for (const address of usersToProcess) {
+    console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
+    try {
+      // On lance les analyses pour les deux plateformes en parallèle
+      await Promise.all([
+        analyzeAndStoreTrades(address, 'pump'),
+        analyzeAndStoreTrades(address, 'bonk')
+      ]);
+      console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+    } catch (error) {
+      console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
+    }
+  }
+
+  console.log("\n--- Fin du Worker ---");
 }
 
-  console.log("\n--- Worker logic finished a cycle ---");
-}
+// Exporter la fonction pour qu'elle puisse être utilisée par le serveur
+module.exports = { runWorker };
 
-// On exporte la logique pour pouvoir l'appeler depuis server.js
-module.exports = {
-  analyzeAndStoreTrades,
-  getFullHistory,
-  runWorkerLogic
-}; 
+// Conserver la possibilité de lancer le worker en standalone pour le débogage
+if (require.main === module) {
+  console.log("Lancement du worker en mode standalone...");
+  runWorker();
+} 

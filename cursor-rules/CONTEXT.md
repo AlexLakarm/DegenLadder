@@ -17,12 +17,15 @@ Le projet est un monorepo structuré comme suit :
 - **Technologie**: Node.js avec Express.js.
 - **`server.js`**: Expose une API REST. Les routes principales sont :
     - `/leaderboard/*`: Sert les données du classement depuis la base de données.
-    - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur dans la table `users` lors de sa première connexion. C'est un `upsert` qui évite les doublons.
-    - `/api/cron/run-worker` (POST): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour mettre à jour les données de tous les utilisateurs. Cet endpoint est destiné à être appelé par un service de cron externe (ex: Vercel Cron Jobs).
-- **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL :
-    - **Extract**: Récupère la liste de tous les utilisateurs depuis la table `users` de Supabase, puis utilise l'API de **Helius** pour récupérer leur historique de transactions.
-    - **Transform**: Analyse ces transactions, les agrège par jeton (mint) et calcule le PNL (Profit & Loss).
-    - **Load**: Insère ou met à jour les résultats dans les tables `trades_pump` et `trades_bonk`.
+    - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur dans la table `users`. **Déclencheur Clé**: Cet endpoint lance également un scan **immédiat et ciblé** du worker pour ce nouvel utilisateur afin de peupler ses données initiales sans délai.
+    - `/api/cron/run-worker` (POST): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale** de tous les utilisateurs existants. Cet endpoint est destiné à être appelé par un service de cron externe.
+- **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL et qui peut être invoquée de deux manières :
+    - **Mode Ciblé**: Pour un seul `user_address` (déclenché par `/user/connect`).
+    - **Mode Global**: Pour tous les utilisateurs de la table `users` (déclenché par `/api/cron/run-worker`).
+    - **Logique**:
+        - **Extract**: Récupère la liste des utilisateurs (un seul ou tous) depuis Supabase, puis utilise l'API de **Helius** pour récupérer leur historique de transactions.
+        - **Transform**: Analyse ces transactions, les agrège par jeton (mint) et calcule le PNL (Profit & Loss).
+        - **Load**: Insère ou met à jour les résultats dans les tables `trades_pump` et `trades_bonk`.
 
 ## 4. Frontend en Détail
 
@@ -98,17 +101,17 @@ Cette section détaille les processus automatisés du projet et comment vérifie
     - **Logs de la fonction**: Allez dans `Logs` > `Database Logs` et filtrez sur "Rafraîchissement". Vous devriez voir les messages de début et de fin de la fonction.
 
 ### 7.2. Mise à jour des Données de Trades (Worker)
-- **Mécanisme**: Un service de Cron externe (ex: Vercel Cron Jobs) doit être configuré pour appeler l'endpoint `POST /api/cron/run-worker`.
-- **Fréquence**: Toutes les 15 minutes (recommandé).
+- **Mécanisme**: Un service de Cron externe (ex: Vercel Cron Jobs) doit être configuré pour appeler l'endpoint `POST /api/cron/run-worker`. Il s'agit du **rafraîchissement global**.
+- **Fréquence**: Quotidiennement (limite du plan gratuit Vercel) ou plus fréquemment avec un plan payant.
 - **Comment vérifier**:
     - **Tableau de bord du service Cron (Vercel)**: Vérifiez que les appels à l'API retournent un code `202 Accepted`.
     - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Worker logic initiated."` à chaque appel, suivi du détail du traitement de chaque utilisateur.
 
-### 7.3. Enregistrement des Nouveaux Utilisateurs
-- **Mécanisme**: Le frontend appelle l'endpoint `POST /user/connect` lors de la connexion.
+### 7.3. Enregistrement et Scan Initial des Nouveaux Utilisateurs
+- **Mécanisme**: Le frontend appelle l'endpoint `POST /user/connect` lors de la connexion. Le backend enregistre l'utilisateur et lance **immédiatement** une tâche de fond pour scanner l'historique de ce nouvel utilisateur.
 - **Comment vérifier**:
-    - **Logs du Backend**: Les logs du serveur afficheront `"User connected successfully"` pour chaque nouvel enregistrement.
-    - **Base de données**: Vérifiez directement la table `users` dans Supabase pour vous assurer que les nouvelles adresses y sont ajoutées.
+    - **Logs du Backend**: Les logs du serveur afficheront `"User connected successfully. Initiating initial scan for address: [user_address]"`.
+    - **Base de données**: Vérifiez directement la table `users` dans Supabase, puis les tables de trades quelques instants après pour voir apparaître les nouvelles données.
 
 ## 8. Démarrage du Projet
 
