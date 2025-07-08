@@ -206,13 +206,13 @@ async function runWorkerLogic() {
   for (const user of usersToTrack) {
     console.log(`\n--- Processing user: ${user} ---`);
     // On analyse les trades pour les deux plateformes pour chaque utilisateur
-    try {
+  try {
       await analyzeAndStoreTrades(user, 'pump');
       await analyzeAndStoreTrades(user, 'bonk');
-    } catch (error) {
+  } catch (error) {
       console.error(`Failed to process user ${user}. Error: ${error.message}`);
-    }
   }
+}
 
   console.log("\n--- Worker logic finished a cycle ---");
 }

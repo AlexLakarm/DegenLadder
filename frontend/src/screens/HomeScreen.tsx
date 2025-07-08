@@ -10,7 +10,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
 import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
-import GyroTitle from "../components/gyro-title/GyroTitle";
+import ShimmerTitle from "../components/gyro-title/GyroTitle";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
@@ -81,10 +81,73 @@ export function HomeScreen() {
     }
   };
 
+  const styles = StyleSheet.create({
+    screenContainer: {
+      flex: 1,
+      padding: 16,
+      backgroundColor: theme.colors.background, // Appliquer le fond sombre
+    },
+    headerContainer: {
+      alignItems: "center",
+      marginBottom: 24, // Augmenter l'espace
+    },
+    shadowWrapper: {
+      // Ce conteneur porte l'ombre pour une meilleure compatibilité Android
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.6,
+      shadowRadius: 8,
+      elevation: 15,
+    },
+    summaryContainer: {
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingVertical: 20,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+    },
+    actionButtonsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 24, // Augmenter l'espace
+    },
+    actionButton: {
+      flex: 1,
+      marginHorizontal: 8,
+    },
+    postToXButton: {
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+    },
+    signInContainer: {
+      paddingVertical: 32,
+      alignItems: 'center',
+    },
+    leaderboardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'center', // Centrer le titre
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontWeight: 'bold',
+      textAlign: 'center',
+      // Effet de lueur sur le texte, plus subtil
+      textShadowColor: theme.colors.primary,
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 5, // Lueur réduite
+    },
+    segmentedButtons: {
+      marginBottom: 16,
+    },
+  });
+
   return (
     <ScrollView style={styles.screenContainer}>
       <View style={styles.headerContainer}>
-        <GyroTitle />
+        <ShimmerTitle>DegenRank</ShimmerTitle>
       </View>
 
       {isLoading && <ActivityIndicator size="large" />}
@@ -96,13 +159,15 @@ export function HomeScreen() {
           {/* Section Résumé Utilisateur - Conditionnelle */}
           {userAddress && currentUserData && (
             <>
-              <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
-                  {currentUserData?.degen_score ?? '--'} pts
-                </PaperText>
-                <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
-                </PaperText>
+              <View style={styles.shadowWrapper}>
+                <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surface }]}>
+                  <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
+                    {currentUserData?.degen_score ?? '--'} pts
+                  </PaperText>
+                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
+                  </PaperText>
+                </View>
               </View>
               <View style={styles.actionButtonsContainer}>
                 <Button 
@@ -117,7 +182,7 @@ export function HomeScreen() {
                   icon="twitter" 
                   mode="contained-tonal" 
                   onPress={onPostToX}
-                  style={styles.actionButton}
+                  style={[styles.actionButton, styles.postToXButton]}
                   disabled={!currentUserData}
                 >
                   Post to X
@@ -179,43 +244,3 @@ export function HomeScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screenContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  headerContainer: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  summaryContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  sectionTitle: {
-    fontWeight: 'bold',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  signInContainer: {
-    alignItems: 'center',
-    marginVertical: 40,
-  },
-  leaderboardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-});

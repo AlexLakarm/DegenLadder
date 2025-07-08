@@ -1,45 +1,57 @@
-import { MD3LightTheme as DefaultTheme, useTheme } from 'react-native-paper';
+import {
+  MD3LightTheme as DefaultTheme,
+  configureFonts,
+  useTheme,
+} from "react-native-paper";
+import type { Theme } from "react-native-paper";
 
-export const theme = {
+const fontConfig = {
+  ...DefaultTheme.fonts,
+};
+
+// Couleurs inspirées de Solana et d'un thème "cyber/tech"
+const solanaThemeColors = {
+  primary: '#00FFA3', // Le vert iconique de Solana
+  primaryContainer: '#003d2b',
+  secondary: '#42dc9e',
+  secondaryContainer: '#2a453a',
+  tertiary: '#98f5d7',
+  tertiaryContainer: '#004f46',
+  background: '#121212', // Fond sombre, presque noir
+  surface: '#1E1E1E', // Surface des cartes légèrement plus claire
+  surfaceVariant: '#2C2C2C', // Variante pour les éléments comme les boutons "tonal"
+  onPrimary: '#003923',
+  onPrimaryContainer: '#98f5d7',
+  onSecondary: '#003823',
+  onSecondaryContainer: '#c1f3d4',
+  onTertiary: '#00382f',
+  onTertiaryContainer: '#b4fbe3',
+  onBackground: '#E4E4E4', // Texte blanc cassé pour une meilleure lisibilité
+  onSurface: '#E4E4E4',
+  onSurfaceVariant: '#BDBDBD', // Couleur de texte plus douce sur les variantes de surface
+  error: '#ffb4ab',
+  onError: '#690005',
+  errorContainer: '#93000a',
+  onErrorContainer: '#ffb4ab',
+  outline: '#8A8A8A', // Bordures
+  shadow: '#00FFA3', // Couleur de l'ombre/lueur
+  elevation: {
+    level0: 'transparent',
+    level1: '#1E1E1E',
+    level2: '#2C2C2C',
+    level3: '#3A3A3A',
+    level4: '#484848',
+    level5: '#565656',
+  }
+};
+
+export const theme: Theme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#00A99D', // Un vert d'eau vif
-    onPrimary: '#ffffff',
-    primaryContainer: '#004f4a',
-    onPrimaryContainer: '#92f9e7',
-    secondary: '#b0c9c5',
-    onSecondary: '#1e3532',
-    secondaryContainer: '#344c48',
-    onSecondaryContainer: '#cce8e1',
-    tertiary: '#b3c6e8',
-    onTertiary: '#1d314d',
-    tertiaryContainer: '#344764',
-    onTertiaryContainer: '#d2e2ff',
-    error: '#ffb4ab',
-    onError: '#690005',
-    errorContainer: '#93000a',
-    onErrorContainer: '#ffb4ab',
-    background: '#191c1c', // Fond sombre, effet "chrome noir"
-    onBackground: '#e0e3e1',
-    surface: '#191c1c',
-    onSurface: '#e0e3e1',
-    surfaceVariant: '#3f4947', // Gris métallique pour les cartes
-    onSurfaceVariant: '#bec9c6',
-    outline: '#899391',
-    inverseOnSurface: '#191c1c',
-    inverseSurface: '#e0e3e1',
-    inversePrimary: '#006a64',
-    elevation: {
-      level0: 'transparent',
-      level1: '#222b2a',
-      level2: '#283331',
-      level3: '#2d3b39',
-      level4: '#2f3d3b',
-      level5: '#32423f',
-    },
+    ...solanaThemeColors,
   },
+  fonts: configureFonts({ config: fontConfig }),
 };
 
-export type AppTheme = typeof theme;
-export const useAppTheme = () => useTheme<AppTheme>(); 
+export const useAppTheme = () => useTheme<typeof theme>(); 
