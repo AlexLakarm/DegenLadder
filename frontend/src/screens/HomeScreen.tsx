@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking, RefreshControl, Platform } from "react-native";
 import { Text as PaperText, useTheme, Button, SegmentedButtons } from "react-native-paper";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import { getGlobalLeaderboard } from "../data/platforms/common-platform-access";
@@ -11,6 +12,8 @@ import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
 import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
 import ShimmerTitle from "../components/gyro-title/GyroTitle";
+import { GlowingCard } from "../components/card/GlowingCard";
+// import { ellipsify } from "../../utils/ellipsify";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
@@ -51,7 +54,7 @@ export function HomeScreen() {
     registerUser();
   }, [userAddress, API_ENDPOINT]);
 
-  const { data: leaderboardData, isLoading, isError, error } = useQuery({
+  const { data: leaderboardData, isLoading, isError, error, isRefetching } = useQuery({
     queryKey: ['globalLeaderboard', userAddress, sortBy],
     queryFn: () => getGlobalLeaderboard(userAddress, sortBy),
   });
@@ -81,37 +84,37 @@ export function HomeScreen() {
     }
   };
 
+  const handleRefresh = useCallback(() => {
+    // Implement refresh logic here
+  }, []);
+
   const styles = StyleSheet.create({
-    screenContainer: {
+    container: {
       flex: 1,
+      backgroundColor: 'transparent',
+    },
+    screenContentContainer: {
       padding: 16,
-      backgroundColor: theme.colors.background, // Appliquer le fond sombre
     },
     headerContainer: {
+      justifyContent: "center",
       alignItems: "center",
-      marginBottom: 24, // Augmenter l'espace
+      marginBottom: 24,
     },
-    shadowWrapper: {
-      // Ce conteneur porte l'ombre pour une meilleure compatibilité Android
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.6,
-      shadowRadius: 8,
-      elevation: 15,
+    cardContainer: {
+      height: 200, // Hauteur fixe pour la scène 3D
+      marginBottom: 24,
     },
     summaryContainer: {
       alignItems: 'center',
-      marginBottom: 16,
       paddingVertical: 20,
-      borderRadius: 16,
+      borderRadius: 16, 
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.outline,
     },
     actionButtonsContainer: {
       flexDirection: 'row',
       justifyContent: 'space-around',
-      marginBottom: 24, // Augmenter l'espace
+      marginBottom: 24,
     },
     actionButton: {
       flex: 1,
@@ -127,7 +130,7 @@ export function HomeScreen() {
     },
     leaderboardHeader: {
       flexDirection: 'row',
-      justifyContent: 'center', // Centrer le titre
+      justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 16,
     },
@@ -137,15 +140,22 @@ export function HomeScreen() {
       // Effet de lueur sur le texte, plus subtil
       textShadowColor: theme.colors.primary,
       textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 5, // Lueur réduite
+      textShadowRadius: 5,
     },
-    segmentedButtons: {
+    segmentedButtonsContainer: {
       marginBottom: 16,
+    },
+    leaderboardContainer: {
+      // Le style du conteneur du classement
     },
   });
 
   return (
-    <ScrollView style={styles.screenContainer}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.screenContentContainer}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
+    >
       <View style={styles.headerContainer}>
         <ShimmerTitle>DegenRank</ShimmerTitle>
       </View>
@@ -159,16 +169,25 @@ export function HomeScreen() {
           {/* Section Résumé Utilisateur - Conditionnelle */}
           {userAddress && currentUserData && (
             <>
-              <View style={styles.shadowWrapper}>
+              <View style={styles.cardContainer}>
+                <GlowingCard />
+              </View>
+              {/* Ancienne carte mise en commentaire */}
+              {/* <LinearGradient
+                colors={[theme.colors.primary, 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardBorderGradient}
+              >
                 <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surface }]}>
                   <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
                     {currentUserData?.degen_score ?? '--'} pts
                   </PaperText>
-                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                     Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
                   </PaperText>
                 </View>
-              </View>
+              </LinearGradient> */}
               <View style={styles.actionButtonsContainer}>
                 <Button 
                   icon="chart-line" 
