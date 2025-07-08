@@ -200,7 +200,7 @@ async function runWorker(userAddress = null) {
     console.log("Veuillez vous assurer que votre fichier .env est correctement configuré.");
     return;
   }
-  
+
   console.log("--- Lancement du Worker ---");
   
   let usersToProcess = [];
@@ -228,7 +228,7 @@ async function runWorker(userAddress = null) {
         analyzeAndStoreTrades(address, 'bonk')
       ]);
       console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-    } catch (error) {
+  } catch (error) {
       console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
     }
   }
