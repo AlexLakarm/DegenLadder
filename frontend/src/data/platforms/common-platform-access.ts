@@ -138,4 +138,4 @@ export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: 
     console.error("Failed to fetch global leaderboard from API:", error);
     throw error;
   }
-}
+} 

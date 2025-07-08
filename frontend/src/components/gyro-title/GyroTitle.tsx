@@ -36,10 +36,10 @@ const ShimmerTitle: React.FC<ShimmerTitleProps> = ({ children }) => {
   ] as const;
 
   return (
-    <MaskedView
-      style={styles.maskedView}
+      <MaskedView
+        style={styles.maskedView}
       onLayout={(event) => setViewWidth(event.nativeEvent.layout.width)}
-      maskElement={
+        maskElement={
         <Text style={[styles.title, { backgroundColor: 'transparent' }]}>
           {children}
         </Text>
@@ -56,14 +56,14 @@ const ShimmerTitle: React.FC<ShimmerTitleProps> = ({ children }) => {
           },
         ]}
       >
-        <LinearGradient
+          <LinearGradient
           colors={gradientColors}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-    </MaskedView>
+          />
+        </Animated.View>
+      </MaskedView>
   );
 };
 
@@ -77,6 +77,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-});
+}); 
 
 export default ShimmerTitle; 

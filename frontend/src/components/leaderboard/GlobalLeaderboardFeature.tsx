@@ -13,4 +13,4 @@ export function GlobalLeaderboardFeature({ data }: GlobalLeaderboardFeatureProps
       <LeaderboardList data={data} />
     </View>
   );
-} 
+}

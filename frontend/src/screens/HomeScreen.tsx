@@ -170,24 +170,15 @@ export function HomeScreen() {
           {userAddress && currentUserData && (
             <>
               <View style={styles.cardContainer}>
-                <GlowingCard />
-              </View>
-              {/* Ancienne carte mise en commentaire */}
-              {/* <LinearGradient
-                colors={[theme.colors.primary, 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.cardBorderGradient}
-              >
-                <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surface }]}>
-                  <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurfaceVariant }}>
+                <GlowingCard>
+                  <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
                     {currentUserData?.degen_score ?? '--'} pts
                   </PaperText>
-                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
                     Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
                   </PaperText>
-                </View>
-              </LinearGradient> */}
+                </GlowingCard>
+              </View>
               <View style={styles.actionButtonsContainer}>
                 <Button 
                   icon="chart-line" 
