@@ -1,92 +1,84 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, Animated } from 'react-native';
 import { Gyroscope } from 'expo-sensors';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import MaskedView from '@react-native-masked-view/masked-view';
+import { useAppTheme } from '../../theme';
 
-const CHROME_COLORS = ['#d4d4d4', '#fafafa', '#d4d4d4', '#a3a3a3', '#fafafa', '#a3a3a3'];
-const TITLE_TEXT = 'DegenRank';
-const GYRO_SENSITIVITY = 1.5;
+const GyroTitle = () => {
+  const theme = useAppTheme();
+  const [subscription, setSubscription] = useState(null);
+  const animatedValue = new Animated.Value(0);
 
-export function GyroTitle() {
-  // Shared values for the gradient's animated position
-  const x = useSharedValue(0);
-  const y = useSharedValue(0);
-
-  // Subscribe to gyroscope data
-  React.useEffect(() => {
-    const subscription = Gyroscope.addListener(({ x: gx, y: gy }) => {
-      // Update shared values with timing for smooth animation
-      x.value = withTiming(gy * GYRO_SENSITIVITY, { duration: 100 });
-      y.value = withTiming(gx * GYRO_SENSITIVITY, { duration: 100 });
+  useEffect(() => {
+    Gyroscope.isAvailableAsync().then(isAvailable => {
+      if (isAvailable) {
+        const sub = Gyroscope.addListener(gyroscopeData => {
+          // Utiliser la rotation sur l'axe y pour un effet de balayage gauche-droite
+          // On normalise et on lisse la valeur
+          const { y } = gyroscopeData;
+          Animated.spring(animatedValue, {
+            toValue: y,
+            speed: 20,
+            bounciness: 10,
+            useNativeDriver: false, 
+          }).start();
+        });
+        setSubscription(sub);
+      }
     });
 
-    // Set gyroscope update interval
-    Gyroscope.setUpdateInterval(16);
-
-    // Unsubscribe on component unmount
-    return () => subscription.remove();
+    return () => {
+      subscription && subscription.remove();
+    };
   }, []);
 
-  // Animated style for the gradient view
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: x.value * 20 }, { translateY: y.value * 20 }],
-    };
+  const translateX = animatedValue.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-30, 30], // Le dégradé se déplacera de -30px à 30px
+    extrapolate: 'clamp',
   });
 
+  const gradientColors = [
+    'transparent',
+    'rgba(255, 255, 255, 0.4)', // Reflet blanc/chrome
+    'transparent',
+  ];
+
   return (
-    <View style={styles.container}>
-      <MaskedView
-        style={styles.maskedView}
-        maskElement={
-          <View style={styles.maskContainer}>
-            <Text style={styles.titleText}>{TITLE_TEXT}</Text>
-          </View>
-        }
+    <Text style={[styles.title, { color: theme.colors.primary }]}>
+      DegenRank
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            transform: [{ translateX }],
+          },
+        ]}
       >
-        <Animated.View style={[styles.gradientContainer, animatedStyle]}>
-          <LinearGradient
-            colors={CHROME_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradient}
-          />
-        </Animated.View>
-      </MaskedView>
-    </View>
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.gradient}
+        />
+      </Animated.View>
+    </Text>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  maskedView: {
-    flex: 1,
-    flexDirection: 'row',
-    height: '100%',
-  },
-  maskContainer: {
-    backgroundColor: 'transparent',
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  titleText: {
+  title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: 'black',
-  },
-  gradientContainer: {
-    flex: 1,
-    width: '150%', // Make gradient larger than the text to see the movement
-    height: '150%',
+    textAlign: 'center',
+    position: 'relative',
+    overflow: 'hidden', // Important pour masquer le dégradé qui dépasse
   },
   gradient: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    width: '30%', // Largeur du reflet
+    left: '35%',
   },
-}); 
+});
+
+export default GyroTitle; 

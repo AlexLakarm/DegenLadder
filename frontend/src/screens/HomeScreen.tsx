@@ -10,6 +10,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
 import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
+import GyroTitle from "../components/gyro-title/GyroTitle";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
@@ -83,12 +84,7 @@ export function HomeScreen() {
   return (
     <ScrollView style={styles.screenContainer}>
       <View style={styles.headerContainer}>
-        <PaperText
-          style={{ fontWeight: "bold", marginBottom: 12 }}
-          variant="displaySmall"
-        >
-          DegenRank
-        </PaperText>
+        <GyroTitle />
       </View>
 
       {isLoading && <ActivityIndicator size="large" />}

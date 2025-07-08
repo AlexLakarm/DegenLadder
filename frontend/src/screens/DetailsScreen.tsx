@@ -61,22 +61,13 @@ export default function DetailsScreen() {
     enabled: !!userAddress, // La requête ne s'exécute que si userAddress existe
   });
 
-  // --- Mock Data ---
-  // const pointsHistory = [
-  //   { reason: "Good exit on $POPCAT", points: "+150", date: "2024-07-03" },
-  //   { reason: "Rekt on $DUMDUM", points: "-50", date: "2024-07-02" },
-  //   { reason: "Early entry on $WIF", points: "+200", date: "2024-07-01" },
-  //   { reason: "Forgot to sell $PEPE", points: "-25", date: "2024-06-30" },
-  // ];
-  // -----------------
-
   return (
     <ScrollView style={styles.container}>
-      <Title style={styles.title}>{isMyOwnProfile ? 'Your Stats' : 'User Stats'}</Title>
+      <Title style={styles.title}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>
-            <Text>Connect your wallet to see your stats.</Text>
+            <Text>Connect your wallet to see your degenStats.</Text>
          </View>
       )}
 
