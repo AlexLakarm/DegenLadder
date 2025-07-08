@@ -29,9 +29,12 @@ Le projet est un monorepo structuré comme suit :
 
 ## 4. Frontend en Détail
 
-- **Technologie**: React Native avec Expo, écrit en TypeScript.
+- **Technologie Principale**: React Native avec Expo, écrit en TypeScript.
 - **Structure**: Le code source se trouve dans `frontend/src/`. Il utilise une navigation par écrans (`screens/`) et des composants réutilisables (`components/`).
 - **Fonctionnalité**: Le frontend appelle l'API du backend pour récupérer les données du leaderboard et les affiche à l'utilisateur.
+- **Composants Avancés et Build Natif**:
+    - **Pile 3D**: Pour des effets visuels modernes, le projet utilise `three.js`, `@react-three/fiber` et `framer-motion-3d` pour rendre des composants en 3D (ex: `GlowingCard.tsx`).
+    - **Build de Développement**: L'utilisation de ces librairies graphiques avancées nécessite la création d'un **build de développement personnalisé** via Expo Application Services (EAS). L'application standard Expo Go n'est pas suffisante.
 - **Logique Clé**: 
     - Le frontend appelle l'API du backend pour récupérer les données.
     - Lors d'une connexion réussie, il appelle l'endpoint `/user/connect` pour s'assurer que l'adresse de l'utilisateur est bien enregistrée côté serveur.
@@ -101,8 +104,9 @@ Cette section détaille les processus automatisés du projet et comment vérifie
     - **Logs de la fonction**: Allez dans `Logs` > `Database Logs` et filtrez sur "Rafraîchissement". Vous devriez voir les messages de début et de fin de la fonction.
 
 ### 7.2. Mise à jour des Données de Trades (Worker)
-- **Mécanisme**: Un service de Cron externe (ex: Vercel Cron Jobs) doit être configuré pour appeler l'endpoint `POST /api/cron/run-worker`. Il s'agit du **rafraîchissement global**.
+- **Mécanisme**: Un Cron Job Vercel est configuré pour appeler l'endpoint `POST /api/cron/run-worker`. Il s'agit du **rafraîchissement global**.
 - **Fréquence**: Quotidiennement (limite du plan gratuit Vercel) ou plus fréquemment avec un plan payant.
+- **Configuration Vercel**: Le fichier `vercel.json` contenant la configuration du cron est placé dans le dossier `backend/`. Dans les réglages du projet Vercel, le "Root Directory" est donc défini sur `backend` pour que le fichier soit détecté.
 - **Comment vérifier**:
     - **Tableau de bord du service Cron (Vercel)**: Vérifiez que les appels à l'API retournent un code `202 Accepted`.
     - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Worker logic initiated."` à chaque appel, suivi du détail du traitement de chaque utilisateur.

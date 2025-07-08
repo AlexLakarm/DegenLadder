@@ -27,17 +27,22 @@ Voici la liste des prochaines étapes de développement, classées par ordre de 
 - **Action Clé**: Rendre chaque ligne du leaderboard sur la page d'accueil cliquable.
 - **Navigation**: Un clic sur un utilisateur doit rediriger vers sa page de détails personnelle.
 
-### 6. Ajouter des Filtres sur le Leaderboard
+### 6. Ajouter des Filtres sur le Leaderboard - ✅ DONE
 - **Objectif**: Offrir plus de contrôle et de granularité dans l'analyse des données.
 - **Action Clé**: Ajouter des options de tri au leaderboard.
 - **Filtres possibles**: "Degen Score", "PNL total (SOL)", "Taux de victoire (%)", "Meilleur trade (PNL)".
 
-### 7. Déployer et Configurer le Cron Job sur Vercel
+### 7. Déployer et Configurer le Cron Job sur Vercel - ✅ DONE
 - **Objectif**: Assurer que la mise à jour des données de trade est entièrement automatisée en production.
 - **Action Clé**: Déployer le backend sur Vercel et configurer un "Cron Job" pour appeler l'endpoint `/api/cron/run-worker`.
 - **Stratégie**: Utiliser le tableau de bord Vercel pour créer le job, en fournissant l'URL de l'endpoint et le `CRON_SECRET` comme variable d'environnement.
 
-### 8. Mettre en Place les Niveaux d'Utilisateurs (Basic/Pro)
+### 8. Créer une Carte de Statistiques Utilisateur en 3D
+- **Objectif**: Remplacer la carte de statistiques statique par un composant 3D interactif et visuellement attractif.
+- **Technologie**: Utiliser la pile `@react-three/fiber`, `three.js`, et `framer-motion-3d`.
+- **Statut Actuel**: En cours de build sur EAS après avoir résolu des problèmes de dépendances.
+
+### 9. Mettre en Place les Niveaux d'Utilisateurs (Basic/Pro)
 - **Objectif**: Créer un modèle de monétisation pour l'application.
 - **Action Clé**: Implémenter un système à deux niveaux :
     - **Basic**: Accès limité à l'onglet "Home".
