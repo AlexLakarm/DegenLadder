@@ -47,6 +47,14 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow $(PRODUCT_NAME) to access device motion for interactive UI effects."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "ffcf1e09-8cff-43e1-9970-b6638b36aa19"
