@@ -140,3 +140,15 @@ Pour lancer l'application, suivez ces étapes dans deux terminaux séparés depu
     ```bash
     npm start --prefix frontend -- --web
     ``` 
+
+## 9. Outils de Développement
+
+### Script `add-user`
+Un script utilitaire a été créé pour ajouter manuellement des adresses Solana à la base de données pour des besoins de test.
+- **Mécanisme**: Le script appelle l'endpoint `/user/connect` de l'API, ce qui garantit que l'adresse est non seulement enregistrée, mais que le scan initial du worker est également déclenché, simulant une connexion utilisateur complète.
+- **Usage**:
+    1. Assurez-vous que le serveur backend est en cours d'exécution (`npm run start:api --prefix backend`).
+    2. Lancez le script depuis la racine du projet en passant une ou plusieurs adresses en argument :
+    ```bash
+    npm run add-user --prefix backend -- <adresse1> <adresse2> ...
+    ``` 
