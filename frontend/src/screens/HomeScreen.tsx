@@ -11,7 +11,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
 import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
-import ShimmerTitle from "../components/gyro-title/GyroTitle";
+import AppTitle from "../components/gyro-title/AppTitle";
 import { GlowingCard } from "../components/card/GlowingCard";
 // import { ellipsify } from "../../utils/ellipsify";
 
@@ -137,10 +137,11 @@ export function HomeScreen() {
     sectionTitle: {
       fontWeight: 'bold',
       textAlign: 'center',
-      // Effet de lueur sur le texte, plus subtil
-      textShadowColor: theme.colors.primary,
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 5,
+      color: theme.colors.onSurface, // On utilise la couleur standard du thème
+      // On retire l'effet de lueur verte
+      // textShadowColor: theme.colors.primary,
+      // textShadowOffset: { width: 0, height: 0 },
+      // textShadowRadius: 5,
     },
     segmentedButtonsContainer: {
       marginBottom: 16,
@@ -157,7 +158,7 @@ export function HomeScreen() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
     >
       <View style={styles.headerContainer}>
-        <ShimmerTitle>DegenRank</ShimmerTitle>
+        <AppTitle>DegenRank</AppTitle>
       </View>
 
       {isLoading && <ActivityIndicator size="large" />}
