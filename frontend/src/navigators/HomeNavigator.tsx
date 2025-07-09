@@ -27,6 +27,7 @@ export function HomeNavigator() {
   const theme = useTheme();
   return (
     <Tab.Navigator
+      sceneContainerStyle={{ backgroundColor: theme.colors.surface }}
       screenOptions={({ route }) => ({
         header: () => <TopBar />,
         tabBarIcon: ({ focused, color, size }) => {

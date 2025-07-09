@@ -63,7 +63,7 @@ export default function DetailsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Title style={styles.title}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
+      <Title style={[styles.title, { color: theme.colors.onSurface }]}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>
@@ -75,7 +75,7 @@ export default function DetailsScreen() {
       {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
 
       {stats && Object.keys(stats).map((platform) => (
-        <Card key={platform} style={styles.card}>
+        <Card key={platform} style={styles.card} mode="contained">
           <Card.Title titleStyle={{textTransform: 'capitalize'}} title={`${platform}.fun`} />
           <Card.Content>
             <List.Item
@@ -95,7 +95,7 @@ export default function DetailsScreen() {
         </Card>
       ))}
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Title title="Recent Activity" />
         <Card.Content>
           {userAddress && isLoadingHistory && <ActivityIndicator />}
