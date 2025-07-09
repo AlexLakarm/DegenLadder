@@ -1,38 +1,46 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useCardTilt } from '../../utils/useCardTilt';
+import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../../theme';
 import {
   Canvas,
+  Mask,
   Rect,
-  useClockValue,
-  useComputedValue,
-  Paint,
-  Group,
-  BlurMask,
+  LinearGradient,
+  vec,
+  RoundedRect, // On utilise RoundedRect pour le liseré
 } from '@shopify/react-native-skia';
+import Animated, {
+  useDerivedValue,
+} from 'react-native-reanimated';
+import { useCardTilt } from '../../utils/useCardTilt';
 
 type GlowingCardProps = {
   children: React.ReactNode;
 };
 
 export function GlowingCard({ children }: GlowingCardProps) {
-  const tilt = useCardTilt();
   const theme = useAppTheme();
   const [cardDimensions, setCardDimensions] = useState({ width: 0, height: 0 });
+
+  const { panResponder, animatedStyle, touchX, touchY } = useCardTilt(
+    cardDimensions.width,
+    cardDimensions.height
+  );
 
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setCardDimensions({ width, height });
   };
+  
+  const gradientOrigin = useDerivedValue(() => {
+    // Le reflet suit le doigt, et disparaît quand on ne touche pas
+    if (touchX.value === -1 || touchY.value === -1) {
+        return vec(cardDimensions.width * 2, cardDimensions.height * 2); 
+    }
+    return vec(touchX.value, touchY.value);
+  }, [touchX, touchY, cardDimensions]);
 
-  // Skia shimmer animation
-  const clock = useClockValue();
-  const shimmerX = useComputedValue(() => {
-    if (cardDimensions.width === 0) return -100; // Don't animate if width is unknown
-    return (clock.current % 4000) / 4000 * (cardDimensions.width + 100) - 100;
-  }, [clock, cardDimensions.width]);
 
   const styles = StyleSheet.create({
     card: {
@@ -40,18 +48,7 @@ export function GlowingCard({ children }: GlowingCardProps) {
       height: '100%',
       borderRadius: 20,
       backgroundColor: theme.colors.surface,
-      overflow: 'hidden', // Important for containing Skia canvas and gradient
-      ...Platform.select({
-        android: {
-          elevation: 10,
-        },
-        ios: {
-          shadowColor: theme.colors.shadow,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: 15,
-        },
-      }),
+      overflow: 'hidden',
     },
     gradient: {
       ...StyleSheet.absoluteFillObject,
@@ -63,23 +60,17 @@ export function GlowingCard({ children }: GlowingCardProps) {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        // Make sure content is on top of the gradient and canvas
         zIndex: 1,
     }
   });
 
   return (
-    <View 
+    <Animated.View 
       onLayout={onLayout}
-      style={[styles.card, {
-        transform: [
-          { perspective: 1000 },
-          { rotateX: `${tilt.x}deg` },
-          { rotateY: `${tilt.y}deg` },
-        ],
-      }]}
+      style={[styles.card, animatedStyle]}
+      {...panResponder.panHandlers}
     >
-      <LinearGradient
+      <ExpoLinearGradient
         colors={[theme.colors.secondary, theme.colors.primaryContainer]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
@@ -88,26 +79,47 @@ export function GlowingCard({ children }: GlowingCardProps) {
       
       {cardDimensions.width > 0 && (
         <Canvas style={styles.canvas}>
-          {/* Shimmer bar */}
-          <Group>
-            <Paint color="white" opacity={0.1}>
-              <BlurMask blur={30} style="solid" />
-            </Paint>
+          <Mask
+            mask={
+              <LinearGradient
+                start={vec(0, 0)}
+                end={vec(cardDimensions.width, cardDimensions.height)}
+                colors={['rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 1)', 'rgba(0, 0, 0, 0.2)']}
+              />
+            }
+          >
             <Rect
-              x={shimmerX}
-              y={-50}
-              width={80}
-              height={cardDimensions.height + 100}
-              transform={[{ rotate: Math.PI / 12 }]}
-              color="white"
-            />
-          </Group>
+              x={0}
+              y={0}
+              width={cardDimensions.width}
+              height={cardDimensions.height}
+            >
+              <LinearGradient
+                origin={gradientOrigin}
+                start={vec(0, 0)}
+                end={vec(cardDimensions.width, 0)}
+                colors={['rgba(255,255,255,0.4)', 'rgba(100,255,200,0.7)', 'rgba(255,255,255,0.4)']}
+              />
+            </Rect>
+          </Mask>
+          
+          {/* Liseré intérieur noir */}
+          <RoundedRect
+            x={4}
+            y={4}
+            width={cardDimensions.width - 8}
+            height={cardDimensions.height - 8}
+            r={16} // Rayon ajusté à l'inset
+            color="black"
+            style="stroke"
+            strokeWidth={1} // Liseré plus fin
+          />
         </Canvas>
       )}
 
       <View style={styles.contentContainer}>
         {children}
       </View>
-    </View>
+    </Animated.View>
   );
-} 
+}
