@@ -1,34 +1,26 @@
 import Constants from 'expo-constants';
+import { LeaderboardEntry } from './types';
 
 // L'API Key Helius n'est plus nécessaire ici
 // const HELIUS_API_KEY = ...
 
-// INTERFACES MISES À JOUR
-export interface LeaderboardEntry {
-  rank: number;
-  rankChange24h: 'up' | 'down' | 'same'; // Pour l'instant, on laisse 'same'
-  user_address: string;
-  name: string; // On le construira côté client
-  pnl_sol: number;
-  degen_score: number; // Ajout du degen_score
-  status: 'WIN' | 'LOSS';
-  // On peut ajouter d'autres champs si nécessaire
-  winningTrades: number; // Ces champs ne sont plus directement dans la réponse principale
-  losingTrades: number;  // On pourrait les calculer ou les ajouter à l'API plus tard
-}
+const getApiUrl = (platform: 'pump' | 'bonk') => {
+  const endpoint = Constants.expoConfig?.extra?.apiEndpoint;
+  if (!endpoint) {
+    // Pour le développement local en web, on peut utiliser une valeur par défaut.
+    // Attention: ceci ne marchera pas pour le mobile natif.
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("API endpoint not found in app.json, using localhost as fallback for web development.");
+      return `http://localhost:3000/leaderboard/${platform}`;
+    }
+    throw new Error('API endpoint is not defined in app.json extras.');
+  }
+  return `${endpoint}/leaderboard/${platform}`;
+};
 
-// L'ancienne interface PlatformActivity n'est plus utilisée
-/*
-export interface PlatformActivity {
-  ...
-}
-*/
 
-// On ne garde que la fonction principale qui appelle l'API
-export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<LeaderboardEntry[]> {
-  // Pour le développement, on pointe vers localhost.
-  // Pour la production, ce sera l'URL de notre serveur déployé.
-  const API_URL = `http://localhost:3000/leaderboard/${platform}`;
+export const getLeaderboardFromApi = async (platform: 'pump' | 'bonk'): Promise<LeaderboardEntry[]> => {
+  const API_URL = getApiUrl(platform);
 
   console.log(`Fetching leaderboard for "${platform}" from API: ${API_URL}`);
 
@@ -95,7 +87,7 @@ export async function getLeaderboardFromApi(platform: 'pump' | 'bonk'): Promise<
     // Retourner un tableau vide en cas d'erreur pour que l'UI ne crashe pas.
     return [];
   }
-} 
+};
 
 // Nouvelle fonction pour le classement global
 export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score'): Promise<LeaderboardEntry[]> {
