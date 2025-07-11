@@ -45,6 +45,6 @@ export function AccountDetailFeature({
         rankChange24h={currentUser.rankChange24h}
       />
       <AccountActions onShare={handleShare} />
-    </View>
+      </View>
   );
 }

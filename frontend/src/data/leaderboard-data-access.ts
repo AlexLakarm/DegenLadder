@@ -9,3 +9,4 @@ export function useLeaderboard(platform: 'pump' | 'bonk') {
     queryFn: () => getLeaderboardFromApi(platform),
   });
 }
+ 
