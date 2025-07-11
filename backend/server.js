@@ -230,6 +230,35 @@ app.get('/user/:userAddress/history', async (req, res) => {
     }
 });
 
+// Route pour vérifier si un utilisateur existe
+app.get('/user/:address/exists', async (req, res) => {
+    const { address } = req.params;
+  
+    if (!address) {
+      return res.status(400).json({ error: 'User address is required.' });
+    }
+  
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('address')
+        .eq('address', address)
+        .single(); // .single() retourne une erreur si aucune ligne n'est trouvée
+  
+      if (error) {
+        // Cette erreur inclut le cas "PGRST116" (aucune ligne trouvée), ce qui est ce que nous voulons
+        return res.status(404).json({ exists: false, message: 'User not found in the database.' });
+      }
+  
+      if (data) {
+        return res.status(200).json({ exists: true });
+      }
+    } catch (error) {
+      console.error(`Error checking if user exists for address ${address}:`, error.message);
+      res.status(500).json({ exists: false, error: 'An internal server error occurred.' });
+    }
+});
+
 // Route pour l'enregistrement ou la connexion d'un utilisateur
 app.post('/user/connect', async (req, res) => {
     const { address } = req.body;

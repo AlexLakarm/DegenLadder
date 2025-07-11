@@ -13,7 +13,8 @@ import Constants from 'expo-constants';
 import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
 import AppTitle from "../components/gyro-title/AppTitle";
 import { GlowingCard } from "../components/card/GlowingCard";
-// import { ellipsify } from "../../utils/ellipsify";
+import { SearchUserFeature } from "../components/search/SearchUserFeature";
+import { ellipsify } from "../utils/ellipsify";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
@@ -22,9 +23,9 @@ export function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [sortBy, setSortBy] = useState('degen_score');
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
-  // const userAddress = MOCK_USER_ADDRESS;
 
   const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -59,7 +60,7 @@ export function HomeScreen() {
     queryFn: () => getGlobalLeaderboard(userAddress, sortBy),
   });
 
-  // On trouve les données de l'utilisateur courant dans le classement
+  // On trouve l'utilisateur courant dans le classement
   const currentUserData = leaderboardData?.find(entry => entry.user_address === userAddress);
   const currentUserIndex = leaderboardData?.findIndex(entry => entry.user_address === userAddress) ?? -1;
   const totalUsers = leaderboardData?.length || 0;
@@ -69,6 +70,12 @@ export function HomeScreen() {
     ? leaderboardData.slice(Math.max(0, currentUserIndex - 3), currentUserIndex + 4)
     : [];
 
+  // On prépare les données pour la section du résultat de recherche
+  const searchedUserIndex = searchQuery ? leaderboardData?.findIndex(entry => entry.user_address === searchQuery) ?? -1 : -1;
+  const searchResultData = leaderboardData && searchedUserIndex !== -1
+    ? leaderboardData.slice(Math.max(0, searchedUserIndex - 3), searchedUserIndex + 4)
+    : [];
+    
   const onPostToX = async () => {
     if (!currentUserData) return;
 
@@ -216,8 +223,20 @@ export function HomeScreen() {
             <PaperText variant="headlineSmall" style={styles.sectionTitle}>
               Leaderboard
             </PaperText>
+            <SearchUserFeature onUserFound={setSearchQuery} />
           </View>
           
+          {searchQuery && (
+            <Button 
+              icon="close-circle-outline" 
+              mode="text" 
+              onPress={() => setSearchQuery(null)}
+              style={{ marginBottom: 10 }}
+            >
+              Clear search for "{ellipsify(searchQuery)}"
+            </Button>
+          )}
+
           <SegmentedButtons
             value={sortBy}
             onValueChange={setSortBy}
@@ -232,9 +251,25 @@ export function HomeScreen() {
           {/* Liste du classement global (Top 10) - Toujours visible */}
           <GlobalLeaderboardFeature data={leaderboardData?.slice(0, 10) ?? []} />
 
-          {/* Section "Your Position" - Conditionnelle */}
-          {userAddress && currentUserData && (
-            <>
+          {/* Section du résultat de recherche - Conditionnelle */}
+          {searchQuery && (
+            <View style={{marginTop: 24}}>
+              <PaperText variant="headlineSmall" style={styles.sectionTitle}>
+                Search Result
+              </PaperText>
+              {searchResultData.length > 0 ? (
+                <LeaderboardList data={searchResultData} currentUserAddress={searchQuery} />
+              ) : (
+                <Text style={{textAlign: 'center', marginVertical: 20}}>
+                  User found, but not ranked yet.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Section "Your Position" - Conditionnelle et cachée si une recherche est active */}
+          {userAddress && currentUserData && !searchQuery && (
+            <View>
               {/* Titre Your Position */}
               <PaperText variant="headlineSmall" style={styles.sectionTitle}>
                 Your Position
@@ -248,7 +283,7 @@ export function HomeScreen() {
                   Your rank will appear here once you start trading.
                 </Text>
               )}
-            </>
+            </View>
           )}
         </>
       )}
