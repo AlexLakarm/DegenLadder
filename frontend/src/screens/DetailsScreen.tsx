@@ -7,6 +7,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import Constants from "expo-constants";
 import { DetailsScreenRouteProp } from '../navigators/HomeNavigator';
 import { useSystemStatus } from "../data/leaderboard-data-access";
+import { AnimatedBorderCard } from "../components/card/AnimatedBorderCard";
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -86,6 +87,16 @@ export default function DetailsScreen() {
     card: {
       marginBottom: 24,
     },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    listItemTitle: {
+      color: theme.colors.onSurface,
+    },
     date: {
       textAlign: 'center',
       marginBottom: 16,
@@ -116,27 +127,29 @@ export default function DetailsScreen() {
       {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
 
       {globalStats && (
-        <Card style={styles.card} mode="contained">
-          <Card.Title title="Global Stats" />
-          <Card.Content>
+        <AnimatedBorderCard style={styles.card}>
+            <Title style={styles.cardTitle}>Global Stats</Title>
             <List.Item
               title="Total PNL (SOL)"
+              titleStyle={styles.listItemTitle}
               right={() => <Text variant="titleMedium" style={{color: globalStats.totalPnl >= 0 ? 'green' : 'red'}}>{globalStats.totalPnl.toFixed(4)} SOL</Text>}
             />
             <List.Item
               title="Win Rate"
+              titleStyle={styles.listItemTitle}
               right={() => <Text variant="titleMedium">{globalStats.winRate.toFixed(2)}%</Text>}
             />
             <List.Item
               title="Total Wins"
+              titleStyle={styles.listItemTitle}
               right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{globalStats.totalWins}</Text>}
             />
             <List.Item
               title="Total Losses"
+              titleStyle={styles.listItemTitle}
               right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{globalStats.totalLosses}</Text>}
             />
-          </Card.Content>
-        </Card>
+        </AnimatedBorderCard>
       )}
 
       {stats && Object.keys(stats).map((platform) => (
