@@ -2,21 +2,16 @@ import React from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
 import { Card, List, Text, Title, useTheme } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
-import { Platform, PlatformColor } from "react-native";
 import { useRoute } from '@react-navigation/native';
 import { useAuthorization } from "../utils/useAuthorization";
 import Constants from "expo-constants";
 import { DetailsScreenRouteProp } from '../navigators/HomeNavigator';
+import { useSystemStatus } from "../data/leaderboard-data-access";
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
-// On utilise la même adresse mockée que dans HomeScreen pour les tests
-// const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
-
-// Fonction pour fetch les stats
 async function fetchUserStats(userAddress: string) {
   if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
-  // Assurez-vous que l'URL correspond à votre configuration locale/de production
   const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/stats`);
   if (!response.ok) {
     throw new Error('Network response was not ok');
@@ -24,7 +19,6 @@ async function fetchUserStats(userAddress: string) {
   return response.json();
 }
 
-// Fonction pour fetch l'historique
 async function fetchUserHistory(userAddress: string) {
   if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
   const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/history`);
@@ -39,31 +33,57 @@ export default function DetailsScreen() {
   const route = useRoute<DetailsScreenRouteProp>();
   const { selectedAccount } = useAuthorization();
 
-  // Priorité 1: Adresse passée en paramètre (navigation depuis le leaderboard)
-  // @ts-ignore
   const addressFromRoute = route.params?.userAddress;
-  // Priorité 2: Adresse de l'utilisateur connecté
-  // Priorité 3: undefined si aucune des deux n'est disponible
   const userAddress = addressFromRoute || selectedAccount?.publicKey.toBase58();
-
-  // On détermine si le profil affiché est celui de l'utilisateur connecté
   const isMyOwnProfile = userAddress === selectedAccount?.publicKey.toBase58();
+
+  const { data: systemStatus, isLoading: isLoadingStatus } = useSystemStatus();
 
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['userStats', userAddress],
     queryFn: () => fetchUserStats(userAddress!),
-    enabled: !!userAddress, // La requête ne s'exécute que si userAddress existe
+    enabled: !!userAddress,
   });
 
   const { data: history, isLoading: isLoadingHistory, isError: isErrorHistory } = useQuery({
     queryKey: ['userHistory', userAddress],
     queryFn: () => fetchUserHistory(userAddress!),
-    enabled: !!userAddress, // La requête ne s'exécute que si userAddress existe
+    enabled: !!userAddress,
+  });
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 16,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 24,
+      textAlign: "center",
+    },
+    card: {
+      marginBottom: 24,
+    },
+    date: {
+      textAlign: 'center',
+      marginBottom: 16,
+      color: theme.colors.onSurface,
+      opacity: 0.7
+    }
   });
 
   return (
     <ScrollView style={styles.container}>
       <Title style={[styles.title, { color: theme.colors.onSurface }]}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
+
+      {isLoadingStatus ? (
+        <ActivityIndicator style={{ marginBottom: 8 }} />
+      ) : systemStatus?.trades_updated_at ? (
+        <Text style={styles.date}>
+            Last trades update: {new Date(systemStatus.trades_updated_at).toLocaleString()}
+        </Text>
+      ) : null}
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>
@@ -127,19 +147,3 @@ export default function DetailsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  card: {
-    marginBottom: 24,
-  },
-});
