@@ -51,6 +51,27 @@ export default function DetailsScreen() {
     enabled: !!userAddress,
   });
 
+  // Calculer les statistiques globales
+  const globalStats = React.useMemo(() => {
+    if (!stats) return null;
+
+    let totalWins = 0;
+    let totalLosses = 0;
+    let totalPnl = 0;
+
+    for (const platform in stats) {
+      totalWins += stats[platform].wins;
+      totalLosses += stats[platform].losses;
+      totalPnl += stats[platform].pnl;
+    }
+
+    const totalTrades = totalWins + totalLosses;
+    const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+
+    return { totalWins, totalLosses, totalPnl, winRate };
+  }, [stats]);
+
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -93,6 +114,30 @@ export default function DetailsScreen() {
 
       {userAddress && isLoading && <ActivityIndicator style={{marginTop: 20}} size="large" />}
       {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
+
+      {globalStats && (
+        <Card style={styles.card} mode="contained">
+          <Card.Title title="Global Stats" />
+          <Card.Content>
+            <List.Item
+              title="Total PNL (SOL)"
+              right={() => <Text variant="titleMedium" style={{color: globalStats.totalPnl >= 0 ? 'green' : 'red'}}>{globalStats.totalPnl.toFixed(4)} SOL</Text>}
+            />
+            <List.Item
+              title="Win Rate"
+              right={() => <Text variant="titleMedium">{globalStats.winRate.toFixed(2)}%</Text>}
+            />
+            <List.Item
+              title="Total Wins"
+              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{globalStats.totalWins}</Text>}
+            />
+            <List.Item
+              title="Total Losses"
+              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{globalStats.totalLosses}</Text>}
+            />
+          </Card.Content>
+        </Card>
+      )}
 
       {stats && Object.keys(stats).map((platform) => (
         <Card key={platform} style={styles.card} mode="contained">
