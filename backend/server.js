@@ -328,6 +328,26 @@ app.post('/api/cron/run-worker', (req, res) => {
 });
 
 
+// Route pour récupérer le statut du système (timestamps de mise à jour)
+app.get('/status', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('system_status')
+            .select('trades_updated_at, leaderboard_updated_at')
+            .eq('id', true)
+            .single(); // Il n'y a qu'une seule ligne
+
+        if (error) throw error;
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error('Error fetching system status:', error.message);
+        res.status(500).json({ error: 'Failed to fetch system status' });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

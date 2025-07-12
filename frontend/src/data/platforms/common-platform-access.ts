@@ -1,11 +1,13 @@
 import Constants from 'expo-constants';
 import { LeaderboardEntry } from './types';
 
+export const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+
 // L'API Key Helius n'est plus nécessaire ici
 // const HELIUS_API_KEY = ...
 
 const getApiUrl = (platform: 'pump' | 'bonk') => {
-  const endpoint = Constants.expoConfig?.extra?.apiEndpoint;
+  const endpoint = API_ENDPOINT;
   if (!endpoint) {
     // Pour le développement local en web, on peut utiliser une valeur par défaut.
     // Attention: ceci ne marchera pas pour le mobile natif.
@@ -92,7 +94,6 @@ export const getLeaderboardFromApi = async (platform: 'pump' | 'bonk'): Promise<
 // Nouvelle fonction pour le classement global
 export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score'): Promise<LeaderboardEntry[]> {
   try {
-    const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
     if (!API_ENDPOINT) {
       throw new Error("API endpoint is not configured");
     }

@@ -1,7 +1,7 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LeaderboardItem } from './LeaderboardItem';
-import { LeaderboardEntry } from '../../data/leaderboard-data-access';
+import { LeaderboardEntry, useSystemStatus } from '../../data/leaderboard-data-access';
 
 interface LeaderboardListProps {
   data: LeaderboardEntry[];
@@ -9,12 +9,21 @@ interface LeaderboardListProps {
 }
 
 export function LeaderboardList({ data, currentUserAddress }: LeaderboardListProps) {
+  const { data: status } = useSystemStatus();
+
   const isCurrentUser = (item: LeaderboardEntry) => {
     return item.user_address === currentUserAddress;
   };
 
   return (
     <View style={{ marginVertical: 20 }}>
+      {/* Le titre est dans HomeScreen, nous ajoutons juste le timestamp ici */}
+      {status?.leaderboard_updated_at && (
+        <Text style={styles.updatedAtText}>
+          Last update: {new Date(status.leaderboard_updated_at).toLocaleString()}
+        </Text>
+      )}
+
       {data.map((item) => (
         <LeaderboardItem
           key={item.user_address} // Utiliser user_address comme clé
@@ -24,4 +33,13 @@ export function LeaderboardList({ data, currentUserAddress }: LeaderboardListPro
       ))}
     </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  updatedAtText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 12,
+  },
+});
