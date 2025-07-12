@@ -307,21 +307,26 @@ app.post('/api/cron/run-worker', (req, res) => {
     runWorker() // Appel sans adresse pour le scan global
       .then(() => {
         console.log("BACKGROUND: Global worker scan completed successfully.");
+        console.log("BACKGROUND: Attempting to update trades_updated_at timestamp...");
         // Mise à jour du timestamp dans la nouvelle table et colonne
         return supabase
           .from('system_status')
           .update({ trades_updated_at: new Date().toISOString() })
-          .eq('id', true);
+          .eq('id', true)
+          .select(); // Ajouter .select() pour que Supabase retourne la ligne mise à jour
       })
-      .then(({ error }) => {
-        if (error) {
-          console.error("BACKGROUND: Failed to update trades_updated_at timestamp.", error);
+      .then((response) => {
+        // La réponse de Supabase contient { data, error }
+        if (response.error) {
+          console.error("BACKGROUND: Supabase update failed!", response.error);
         } else {
-          console.log("BACKGROUND: trades_updated_at timestamp updated.");
+          console.log("BACKGROUND: trades_updated_at timestamp updated successfully.");
+          console.log("BACKGROUND: Updated data:", response.data);
         }
       })
       .catch(err => {
-        console.error("BACKGROUND: Global worker scan failed.", err);
+        // Ce catch interceptera maintenant les erreurs venant de runWorker()
+        console.error("BACKGROUND: Worker process failed and timestamp was NOT updated.", err);
       });
   
     res.status(202).send('Accepted: Worker process started.');

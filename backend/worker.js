@@ -201,7 +201,7 @@ async function runWorker(userAddress = null) {
   if (!HELIUS_API_KEY) {
     console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
     console.log("Veuillez vous assurer que votre fichier .env est correctement configuré.");
-    return;
+    return; // On pourrait aussi lancer une erreur ici
   }
 
   console.log("--- Lancement du Worker ---");
@@ -221,6 +221,8 @@ async function runWorker(userAddress = null) {
     return;
   }
 
+  const failedUsers = [];
+
   // Traiter chaque utilisateur
   for (const address of usersToProcess) {
     console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
@@ -231,12 +233,17 @@ async function runWorker(userAddress = null) {
         analyzeAndStoreTrades(address, 'bonk')
       ]);
       console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-  } catch (error) {
+    } catch (error) {
       console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
+      failedUsers.push(address);
     }
   }
 
   console.log("\n--- Fin du Worker ---");
+
+  if (failedUsers.length > 0) {
+    throw new Error(`Le traitement a échoué pour ${failedUsers.length} utilisateur(s): ${failedUsers.join(', ')}`);
+  }
 }
 
 // Exporter la fonction pour qu'elle puisse être utilisée par le serveur
