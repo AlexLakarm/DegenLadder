@@ -302,12 +302,30 @@ app.post('/api/cron/run-worker', (req, res) => {
       return res.status(401).send('Unauthorized');
     }
   
-    // On lance la logique du worker en tâche de fond et on répond immédiatement
+    // On lance la logique du worker en tâche de fond
     console.log("Cron job received. Worker logic initiated for all users.");
-    runWorker(); // Appel sans adresse pour le scan global
+    runWorker() // Appel sans adresse pour le scan global
+      .then(() => {
+        console.log("BACKGROUND: Global worker scan completed successfully.");
+        // Mise à jour du timestamp dans la nouvelle table et colonne
+        return supabase
+          .from('system_status')
+          .update({ trades_updated_at: new Date().toISOString() })
+          .eq('id', true);
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error("BACKGROUND: Failed to update trades_updated_at timestamp.", error);
+        } else {
+          console.log("BACKGROUND: trades_updated_at timestamp updated.");
+        }
+      })
+      .catch(err => {
+        console.error("BACKGROUND: Global worker scan failed.", err);
+      });
   
     res.status(202).send('Accepted: Worker process started.');
-  });
+});
 
 
 app.listen(port, () => {

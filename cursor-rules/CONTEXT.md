@@ -42,7 +42,7 @@ Le projet est un monorepo structuré comme suit :
 
 ## 5. Base de Données (Supabase)
 
-La base de données contient 3 tables principales et une vue matérialisée.
+La base de données contient 3 tables principales, une table de statut et une vue matérialisée.
 
 ### Table `users`
 Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker.
@@ -81,6 +81,19 @@ CREATE TABLE trades_pump (
 ```
 La table `trades_bonk` est identique. 
 
+### Table `system_status`
+Cette table centralise les timestamps des processus automatisés clés pour un monitoring simplifié. Elle ne contient qu'une seule ligne.
+
+```sql
+CREATE TABLE system_status (
+  id bool PRIMARY KEY, -- Toujours 'true'
+  trades_updated_at timestamp with time zone,
+  leaderboard_updated_at timestamp with time zone
+);
+```
+- `trades_updated_at`: Mis à jour à la fin de chaque exécution réussie du cron job Vercel (scan global des trades).
+- `leaderboard_updated_at`: Mis à jour à la fin de chaque rafraîchissement réussi de la vue `degen_rank` par le cron Supabase.
+
 ### Vue Matérialisée `degen_rank`
 Pour garantir des temps de chargement rapides, le classement principal est une **vue matérialisée**. Elle agrège les scores, le PNL et le nombre de trades pour chaque utilisateur.
 **Automatisation**: Elle est rafraîchie automatiquement toutes les 10 minutes. (Voir la section "Automatisation et Monitoring").
@@ -100,7 +113,7 @@ Cette section détaille les processus automatisés du projet et comment vérifie
 - **Fréquence**: Toutes les 10 minutes.
 - **Comment vérifier**:
     - **Supabase UI**: Allez dans `Database` > `Cron`. La tâche `refresh-degen-rank` doit avoir un statut `succeeded`.
-    - **SQL**: Exécutez `SELECT * FROM cron.job_run_details WHERE jobname = 'refresh-degen-rank' ORDER BY start_time DESC;` pour voir l'historique détaillé.
+    - **SQL**: Exécutez `SELECT leaderboard_updated_at FROM public.system_status;` pour voir le timestamp du dernier rafraîchissement.
     - **Logs de la fonction**: Allez dans `Logs` > `Database Logs` et filtrez sur "Rafraîchissement". Vous devriez voir les messages de début et de fin de la fonction.
 
 ### 7.2. Mise à jour des Données de Trades (Worker)
@@ -109,7 +122,8 @@ Cette section détaille les processus automatisés du projet et comment vérifie
 - **Configuration Vercel**: Le fichier `vercel.json` contenant la configuration du cron est placé dans le dossier `backend/`. Dans les réglages du projet Vercel, le "Root Directory" est donc défini sur `backend` pour que le fichier soit détecté.
 - **Comment vérifier**:
     - **Tableau de bord du service Cron (Vercel)**: Vérifiez que les appels à l'API retournent un code `202 Accepted`.
-    - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Worker logic initiated."` à chaque appel, suivi du détail du traitement de chaque utilisateur.
+    - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Global worker scan completed successfully."` et `"trades_updated_at timestamp updated."`.
+    - **SQL**: Exécutez `SELECT trades_updated_at FROM public.system_status;` pour voir le timestamp du dernier scan global.
 
 ### 7.3. Enregistrement et Scan Initial des Nouveaux Utilisateurs
 - **Mécanisme**: Le frontend appelle l'endpoint `POST /user/connect` lors de la connexion. Le backend enregistre l'utilisateur et lance **immédiatement** une tâche de fond pour scanner l'historique de ce nouvel utilisateur.

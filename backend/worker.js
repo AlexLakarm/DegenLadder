@@ -10,11 +10,14 @@ const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 
 // LOGIQUE COMMUNE (portée depuis le frontend)
 async function getFullHistory(address) {
-  const url = `https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_API_KEY}`;
+  const apiBase = process.env.SOLANA_ENV === 'devnet' 
+    ? 'https://api-devnet.helius.xyz' 
+    : 'https://api.helius.xyz';
+  const url = `${apiBase}/v0/addresses/${address}/transactions?api-key=${HELIUS_API_KEY}`;
   const transactions = [];
   let lastSignature = null;
 
-  console.log("Starting full history fetch...");
+  console.log(`Starting full history fetch from ${process.env.SOLANA_ENV === 'devnet' ? 'DEVNET' : 'MAINNET'}...`);
 
   while (true) {
     const fetchUrl = lastSignature ? `${url}&before=${lastSignature}` : url;
