@@ -104,32 +104,45 @@ Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la
 - **Trade Perdant**: -10 points
 - **Bonus PnL** (uniquement si PnL > 0): `50 * log(1 + pnl_en_sol)`
 
-## 7. Automatisation et Monitoring
+## 7. Automatisation et Stratégies de Rafraîchissement
 
-Cette section détaille les processus automatisés du projet et comment vérifier leur bon fonctionnement.
+Le projet utilise trois mécanismes distincts pour maintenir les données à jour, chacun avec une fréquence et un déclencheur spécifiques. Il est crucial de différencier le rafraîchissement des **données brutes de trades** (qui viennent de la blockchain via Helius) du rafraîchissement du **leaderboard** (qui est une vue agrégée en base de données).
 
-### 7.1. Rafraîchissement du Leaderboard
-- **Mécanisme**: Une tâche planifiée (`pg_cron`) directement dans la base de données Supabase.
-- **Fréquence**: Toutes les 10 minutes.
+### 7.1. Scan Initial des Nouveaux Utilisateurs (En temps réel)
+- **Objectif**: Fournir des données immédiates à un nouvel utilisateur pour une bonne expérience d'onboarding.
+- **Déclencheur**: Un utilisateur se connecte à l'application pour la première fois.
+- **Mécanisme**:
+    1. Le frontend appelle l'endpoint `POST /user/connect`.
+    2. Le backend enregistre l'adresse dans la table `users`.
+    3. Le backend lance **immédiatement** le `worker.js` en arrière-plan et en mode ciblé pour cet utilisateur uniquement.
 - **Comment vérifier**:
-    - **Supabase UI**: Allez dans `Database` > `Cron`. La tâche `refresh-degen-rank` doit avoir un statut `succeeded`.
-    - **SQL**: Exécutez `SELECT leaderboard_updated_at FROM public.system_status;` pour voir le timestamp du dernier rafraîchissement.
-    - **Logs de la fonction**: Allez dans `Logs` > `Database Logs` et filtrez sur "Rafraîchissement". Vous devriez voir les messages de début et de fin de la fonction.
+    - **Logs du Backend**: Le log `"Initiating initial scan for address: [user_address]"` apparaît.
+    - **Base de données**: Les données de trade pour cet utilisateur apparaissent dans les tables `trades_*` après quelques instants.
 
-### 7.2. Mise à jour des Données de Trades (Worker)
-- **Mécanisme**: Un Cron Job Vercel est configuré pour appeler l'endpoint `POST /api/cron/run-worker`. Il s'agit du **rafraîchissement global**.
-- **Fréquence**: Quotidiennement (limite du plan gratuit Vercel) ou plus fréquemment avec un plan payant.
-- **Configuration Vercel**: Le fichier `vercel.json` contenant la configuration du cron est placé dans le dossier `backend/`. Dans les réglages du projet Vercel, le "Root Directory" est donc défini sur `backend` pour que le fichier soit détecté.
+### 7.2. Mise à Jour Globale des Trades (Tâche de fond planifiée)
+- **Objectif**: Mettre à jour les données de trades pour **tous** les utilisateurs enregistrés.
+- **Déclencheur**: Un Cron Job Vercel.
+- **Fréquence**: Quotidiennement (modifiable dans `backend/vercel.json`).
+- **Mécanisme**:
+    1. Vercel Cron appelle l'endpoint `POST /api/cron/run-worker`.
+    2. Le backend lance le `worker.js` en mode global, qui parcourt tous les utilisateurs de la table `users`.
+    3. À la fin du processus, le timestamp `trades_updated_at` est mis à jour dans la table `system_status`.
 - **Comment vérifier**:
-    - **Tableau de bord du service Cron (Vercel)**: Vérifiez que les appels à l'API retournent un code `202 Accepted`.
-    - **Logs du Backend**: Les logs de votre serveur Node.js afficheront `"Global worker scan completed successfully."` et `"trades_updated_at timestamp updated."`.
-    - **SQL**: Exécutez `SELECT trades_updated_at FROM public.system_status;` pour voir le timestamp du dernier scan global.
+    - **Tableau de bord Vercel**: Le cron job s'exécute avec succès (code 202).
+    - **Logs du Backend**: Le log `"Global worker scan completed successfully"` apparaît.
+    - **SQL**: La commande `SELECT trades_updated_at FROM public.system_status;` montre une date récente.
 
-### 7.3. Enregistrement et Scan Initial des Nouveaux Utilisateurs
-- **Mécanisme**: Le frontend appelle l'endpoint `POST /user/connect` lors de la connexion. Le backend enregistre l'utilisateur et lance **immédiatement** une tâche de fond pour scanner l'historique de ce nouvel utilisateur.
+### 7.3. Rafraîchissement du Leaderboard (Agrégation rapide)
+- **Objectif**: Mettre à jour la vue matérialisée `degen_rank` qui agrège les données des tables de trades pour un affichage rapide du classement.
+- **Déclencheur**: Un Cron Job Supabase (`pg_cron`).
+- **Fréquence**: Toutes les 10 minutes (modifiable dans l'interface Supabase).
+- **Mécanisme**:
+    1. `pg_cron` exécute la fonction SQL `refresh_degen_rank()`.
+    2. Cette fonction exécute `REFRESH MATERIALIZED VIEW CONCURRENTLY degen_rank;`.
+    3. À la fin, elle met à jour le timestamp `leaderboard_updated_at` dans la table `system_status`.
 - **Comment vérifier**:
-    - **Logs du Backend**: Les logs du serveur afficheront `"User connected successfully. Initiating initial scan for address: [user_address]"`.
-    - **Base de données**: Vérifiez directement la table `users` dans Supabase, puis les tables de trades quelques instants après pour voir apparaître les nouvelles données.
+    - **Supabase UI**: Dans `Database` > `Cron`, la tâche `refresh-degen-rank` a le statut `succeeded`.
+    - **SQL**: La commande `SELECT leaderboard_updated_at FROM public.system_status;` montre une date récente.
 
 ## 8. Démarrage du Projet
 
