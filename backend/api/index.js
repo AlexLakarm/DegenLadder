@@ -14,12 +14,29 @@ app.use(express.json());
 
 // Définir la route cron pour accepter les requêtes GET
 app.get('/api/cron', async (req, res) => {
-  console.log('Cron job started via GET request');
+  console.log('Cron job started via GET request. Awaiting worker completion...');
   try {
-    // ... existing code ...
+    // Attendre la fin de l'exécution du worker.
+    // C'est essentiel pour que Vercel ne tue pas le processus.
+    await runWorker();
+    
+    // Une fois le worker terminé avec succès, mettre à jour le timestamp.
+    const { error: updateError } = await supabase
+      .from('metadata')
+      .update({ trades_updated_at: new Date().toISOString() })
+      .eq('id', 1);
+
+    if (updateError) {
+      console.error('Error updating trades_updated_at:', updateError);
+      // Ne pas bloquer la réponse pour une erreur de timestamp
+    } else {
+      console.log('Successfully updated trades_updated_at timestamp.');
+    }
+
+    res.status(200).send('OK: Cron job finished successfully.');
   } catch (error) {
     console.error('Error during cron job execution:', error);
-    res.status(500).send('Server Error: Cron job failed.');
+    res.status(500).send(`Server Error: Cron job failed. Reason: ${error.message}`);
   }
 });
 
