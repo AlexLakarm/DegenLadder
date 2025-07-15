@@ -32,8 +32,10 @@ async function getFullHistory(address) {
   
       transactions.push(...data);
       lastSignature = data[data.length - 1].signature;
-      console.log(`Fetched batch of ${data.length} transactions. Total: ${transactions.length}. Continuing...`);
-  
+      
+      // Ajout d'une pause pour respecter les limites de l'API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       if (transactions.length > 500) {
           console.log("Stopping fetch at 500 transactions for development purposes.");
           break;
@@ -84,6 +86,9 @@ async function getRecentHistory(address, lastUpdateTimestamp) {
       
       transactions.push(...data);
       lastSignature = data[data.length - 1].signature;
+
+      // Ajout d'une pause pour respecter les limites de l'API
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (transactions.length > 500) {
         console.log("Stopping fetch at 500 transactions for safety.");
