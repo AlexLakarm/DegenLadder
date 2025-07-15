@@ -305,27 +305,25 @@ async function runWorker(userAddress = null) {
 
   for (let i = 0; i < usersToProcess.length; i += CHUNK_SIZE) {
     const chunk = usersToProcess.slice(i, i + CHUNK_SIZE);
-    console.log(`\n--- Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(usersToProcess.length / CHUNK_SIZE)} with ${chunk.length} users ---`);
+    console.log(`\n--- Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(usersToProcess.length / CHUNK_SIZE)} with ${chunk.length} users (processing serially within chunk) ---`);
     
-    const userProcessingPromises = chunk.map(address => {
-      return (async () => {
-        console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
-        try {
-          await Promise.all([
-            analyzeAndStoreTrades(address, 'pump', lastUpdateTimestamp),
-            analyzeAndStoreTrades(address, 'bonk', lastUpdateTimestamp)
-          ]);
-          console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-          return { status: 'fulfilled', address };
-        } catch (error) {
-          console.error(`Erreur lors du traitement de l'adresse ${address}:`, error.message);
-          return { status: 'rejected', address, reason: error.message };
-        }
-      })();
-    });
-
-    const chunkResults = await Promise.allSettled(userProcessingPromises);
-    allResults.push(...chunkResults);
+    // On traite les utilisateurs du lot un par un pour ne pas surcharger l'API
+    for (const address of chunk) {
+      console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
+      try {
+        // On traite les plateformes en série pour respecter la limite de l'API Helius
+        await analyzeAndStoreTrades(address, 'pump', lastUpdateTimestamp);
+        await analyzeAndStoreTrades(address, 'bonk', lastUpdateTimestamp);
+        
+        console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+        // On simule un résultat 'fulfilled' pour le comptage
+        allResults.push({ status: 'fulfilled', value: { status: 'fulfilled', address } });
+      } catch (error) {
+        console.error(`Erreur lors du traitement de l'adresse ${address}:`, error.message);
+        // On simule un résultat 'rejected' pour le comptage
+        allResults.push({ status: 'fulfilled', value: { status: 'rejected', address, reason: error.message } });
+      }
+    }
     
     if (i + CHUNK_SIZE < usersToProcess.length) {
       console.log(`--- Chunk completed. Waiting ${DELAY_BETWEEN_CHUNKS}ms before next chunk... ---`);
