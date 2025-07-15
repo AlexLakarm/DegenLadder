@@ -295,7 +295,7 @@ app.post('/user/connect', async (req, res) => {
 
 
 // --- ENDPOINT POUR LE CRON JOB ---
-app.post('/api/cron/run-worker', (req, res) => {
+app.get('/api/cron/run-worker', (req, res) => {
     // Sécurisation de l'endpoint
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
