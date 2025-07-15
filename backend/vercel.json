@@ -9,5 +9,8 @@
       "path": "/api/cron",
       "schedule": "0 8 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 } 
