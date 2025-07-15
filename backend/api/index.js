@@ -372,6 +372,14 @@ app.get('/status', async (req, res) => {
 // Quand on déploie sur Vercel, on n'écoute pas sur un port, on exporte l'app Express.
 module.exports = app;
 
+// Ce bloc ne sera exécuté que si le script est lancé directement (ex: `node api/index.js`)
+// Il ne sera pas exécuté par Vercel, qui utilise l'export ci-dessus.
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`✅ Server is running on http://localhost:${port}`);
+  });
+}
+
 // --- ANCIENNE LOGIQUE DE WORKER AUTONOME MISE EN COMMENTAIRE ---
 // setInterval(async () => {
 //     console.log('--- Starting periodic worker logic ---');

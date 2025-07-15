@@ -318,10 +318,6 @@ async function runWorker(userAddress = null) {
       try {
         // On traite les plateformes en série pour respecter la limite de l'API Helius
         await analyzeAndStoreTrades(address, 'pump', lastUpdateTimestamp);
-        
-        // Pause supplémentaire entre les appels de plateformes pour garantir le respect des limites
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
         await analyzeAndStoreTrades(address, 'bonk', lastUpdateTimestamp);
         
         console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);

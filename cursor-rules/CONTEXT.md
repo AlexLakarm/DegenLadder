@@ -15,17 +15,20 @@ Le projet est un monorepo structuré comme suit :
 ## 3. Backend en Détail
 
 - **Technologie**: Node.js avec Express.js.
-- **`server.js`**: Expose une API REST. Les routes principales sont :
+- **`backend/api/index.js`**: Expose une API REST. Les routes principales sont :
     - `/leaderboard/*`: Sert les données du classement depuis la base de données.
-    - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur dans la table `users`. **Déclencheur Clé**: Cet endpoint lance également un scan **immédiat et ciblé** du worker pour ce nouvel utilisateur afin de peupler ses données initiales sans délai.
-    - `/api/cron/run-worker` (POST): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale** de tous les utilisateurs existants. Cet endpoint est destiné à être appelé par un service de cron externe.
-- **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL et qui peut être invoquée de deux manières :
-    - **Mode Ciblé**: Pour un seul `user_address` (déclenché par `/user/connect`).
-    - **Mode Global**: Pour tous les utilisateurs de la table `users` (déclenché par `/api/cron/run-worker`).
-    - **Logique**:
-        - **Extract**: Récupère la liste des utilisateurs (un seul ou tous) depuis Supabase, puis utilise l'API de **Helius** pour récupérer leur historique de transactions.
-        - **Transform**: Analyse ces transactions, les agrège par jeton (mint) et calcule le PNL (Profit & Loss).
-        - **Load**: Insère ou met à jour les résultats dans les tables `trades_pump` et `trades_bonk`.
+    - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur. **Déclencheur Clé**: Cet endpoint lance un scan **immédiat et complet** (`getFullHistory`) du worker pour ce nouvel utilisateur afin de peupler ses données initiales.
+    - `/api/cron` (GET): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale et incrémentale** de tous les utilisateurs existants.
+- **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL. Sa robustesse a été grandement améliorée pour gérer les limitations des API externes.
+    - **Logique d'Extraction (Helius API)**:
+        - **Scan Complet (`getFullHistory`)**: Utilisé pour les nouveaux utilisateurs. Parcourt tout l'historique des transactions.
+        - **Scan Incrémental (`getRecentHistory`)**: Utilisé par le cron. Ne récupère que les transactions survenues depuis la dernière exécution réussie, en se basant sur le timestamp `trades_updated_at` de la table `system_status`.
+        - **Stratégie anti "Rate-Limiting"**: Pour éviter les erreurs 429 de Helius, une stratégie de temporisation à plusieurs niveaux est implémentée :
+            1.  Une pause de **1 seconde** est observée après chaque "page" de transactions récupérée.
+            2.  Une pause de **1 seconde** est observée entre le scan de la plateforme `.pump` et celui de `.bonk` pour un même utilisateur.
+            3.  Les utilisateurs sont traités en lots (`chunks`) pour structurer le processus.
+            4.  Au sein d'un lot, les utilisateurs sont traités **en série** (un par un).
+    - **Logique Transform & Load**: Identique (analyse, agrégation, calcul du score, upsert dans les tables `trades_*`).
 
 ## 4. Frontend en Détail
 
@@ -91,7 +94,7 @@ CREATE TABLE system_status (
   leaderboard_updated_at timestamp with time zone
 );
 ```
-- `trades_updated_at`: Mis à jour à la fin de chaque exécution réussie du cron job Vercel (scan global des trades).
+- `trades_updated_at`: Mis à jour à la fin de chaque exécution réussie du scan global des trades.
 - `leaderboard_updated_at`: Mis à jour à la fin de chaque rafraîchissement réussi de la vue `degen_rank` par le cron Supabase.
 
 ### Vue Matérialisée `degen_rank`
@@ -106,76 +109,56 @@ Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la
 
 ## 7. Automatisation et Stratégies de Rafraîchissement
 
-Le projet utilise trois mécanismes distincts pour maintenir les données à jour, chacun avec une fréquence et un déclencheur spécifiques. Il est crucial de différencier le rafraîchissement des **données brutes de trades** (qui viennent de la blockchain via Helius) du rafraîchissement du **leaderboard** (qui est une vue agrégée en base de données).
+Le projet utilise trois mécanismes distincts pour maintenir les données à jour.
 
 ### 7.1. Scan Initial des Nouveaux Utilisateurs (En temps réel)
-- **Objectif**: Fournir des données immédiates à un nouvel utilisateur pour une bonne expérience d'onboarding.
+- **Objectif**: Fournir des données immédiates à un nouvel utilisateur.
 - **Déclencheur**: Un utilisateur se connecte à l'application pour la première fois.
 - **Mécanisme**:
     1. Le frontend appelle l'endpoint `POST /user/connect`.
-    2. Le backend enregistre l'adresse dans la table `users`.
-    3. Le backend lance **immédiatement** le `worker.js` en arrière-plan et en mode ciblé pour cet utilisateur uniquement.
-- **Comment vérifier**:
-    - **Logs du Backend**: Le log `"Initiating initial scan for address: [user_address]"` apparaît.
-    - **Base de données**: Les données de trade pour cet utilisateur apparaissent dans les tables `trades_*` après quelques instants.
+    2. Le backend lance le `worker.js` en mode ciblé (scan complet) pour cet utilisateur.
 
-### 7.2. Mise à Jour Globale des Trades (Tâche de fond planifiée)
-- **Objectif**: Mettre à jour les données de trades pour **tous** les utilisateurs enregistrés.
-- **Déclencheur**: Un Cron Job Vercel.
-- **Fréquence**: Quotidiennement (modifiable dans `backend/vercel.json`).
+### 7.2. Mise à Jour Globale des Trades (Solution Actuelle : Manuelle)
+- **Objectif**: Mettre à jour les données de trades pour **tous** les utilisateurs enregistrés de manière fiable.
+- **Problématique**: Le cron Vercel a un timeout de 60 secondes, ce qui est trop court pour le worker qui doit respecter les limites de l'API Helius.
+- **Solution de Contournement Actuelle**: Lancer le worker manuellement.
 - **Mécanisme**:
-    1. Vercel Cron appelle l'endpoint `POST /api/cron/run-worker`.
-    2. Le backend lance le `worker.js` en mode global, qui parcourt tous les utilisateurs de la table `users`.
-    3. À la fin du processus, le timestamp `trades_updated_at` est mis à jour dans la table `system_status`.
-- **Comment vérifier**:
-    - **Tableau de bord Vercel**: Le cron job s'exécute avec succès (code 202).
-    - **Logs du Backend**: Le log `"Global worker scan completed successfully"` apparaît.
-    - **SQL**: La commande `SELECT trades_updated_at FROM public.system_status;` montre une date récente.
+    1. Un opérateur lance le script `node backend/scripts/runManualWorker.js` depuis sa machine.
+    2. Le script appelle le `worker.js` en mode global (scan incrémental).
+    3. Le worker s'exécute sans contrainte de temps et met à jour le timestamp `trades_updated_at` dans la table `system_status` à la fin.
 
 ### 7.3. Rafraîchissement du Leaderboard (Agrégation rapide)
-- **Objectif**: Mettre à jour la vue matérialisée `degen_rank` qui agrège les données des tables de trades pour un affichage rapide du classement.
+- **Objectif**: Mettre à jour la vue matérialisée `degen_rank`.
 - **Déclencheur**: Un Cron Job Supabase (`pg_cron`).
-- **Fréquence**: Toutes les 10 minutes (modifiable dans l'interface Supabase).
+- **Fréquence**: Toutes les 10 minutes.
 - **Mécanisme**:
     1. `pg_cron` exécute la fonction SQL `refresh_degen_rank()`.
-    2. Cette fonction exécute `REFRESH MATERIALIZED VIEW CONCURRENTLY degen_rank;`.
-    3. À la fin, elle met à jour le timestamp `leaderboard_updated_at` dans la table `system_status`.
-- **Comment vérifier**:
-    - **Supabase UI**: Dans `Database` > `Cron`, la tâche `refresh-degen-rank` a le statut `succeeded`.
-    - **SQL**: La commande `SELECT leaderboard_updated_at FROM public.system_status;` montre une date récente.
+    2. La fonction met à jour le timestamp `leaderboard_updated_at` dans `system_status`.
 
 ## 8. Démarrage du Projet
 
-Pour lancer l'application, suivez ces étapes dans deux terminaux séparés depuis la racine du projet.
+Pour lancer l'application, suivez ces étapes dans deux terminaux séparés.
 
 ### Démarrer le Backend
-
-1.  Ouvrez un terminal.
-2.  Lancez le serveur d'API :
-    ```bash
-    npm run start:api --prefix backend
-    ```
-3.  *Optionnel*: Pour lancer le worker de collecte de données (généralement pour le développement ou des tâches ponctuelles) :
-    ```bash
-    npm run start:worker --prefix backend
-    ```
+```bash
+npm run start --prefix backend
+```
 
 ### Démarrer le Frontend
-
-1.  Ouvrez un second terminal.
-2.  Lancez l'application web :
-    ```bash
-    npm start --prefix frontend -- --web
-    ``` 
+```bash
+npm start --prefix frontend
+``` 
 
 ## 9. Outils de Développement
 
 ### Script `add-user`
-Un script utilitaire a été créé pour ajouter manuellement des adresses Solana à la base de données pour des besoins de test.
-- **Mécanisme**: Le script appelle l'endpoint `/user/connect` de l'API, ce qui garantit que l'adresse est non seulement enregistrée, mais que le scan initial du worker est également déclenché, simulant une connexion utilisateur complète.
-- **Usage**:
-    1. Assurez-vous que le serveur backend est en cours d'exécution (`npm run start:api --prefix backend`).
-    2. Lancez le script depuis la racine du projet en passant une ou plusieurs adresses en argument :
-    ```bash
-    npm run add-user --prefix backend -- <adresse1> <adresse2> ...
-    ``` 
+Ajoute un nouvel utilisateur et déclenche son scan initial. Simule une première connexion.
+```bash
+npm run add-user --prefix backend -- <adresse1> <adresse2> ...
+``` 
+
+### Script `runManualWorker`
+Lance le scan global incrémental de tous les utilisateurs. C'est la méthode de mise à jour principale actuelle.
+```bash
+node backend/scripts/runManualWorker.js
+``` 

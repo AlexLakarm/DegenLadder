@@ -40,6 +40,8 @@ async function main() {
   
   for (const address of addresses) {
     await addUser(address);
+    // On remet la pause pour espacer les appels et éviter le rate limiting de Helius
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   console.log('\nScript finished.');
