@@ -182,7 +182,10 @@ async function getTrackedUsers() {
   console.log("WORKER-DIAG: Entering getTrackedUsers function...");
   try {
     console.log("WORKER-DIAG: Attempting to query Supabase for the user list...");
-    const { data: users, error } = await supabase.from('users').select('address');
+    const { data: users, error } = await supabase
+        .from('users')
+        .select('address')
+        .limit(10); // LIMITATION POUR LE DIAGNOSTIC
     console.log("WORKER-DIAG: Supabase query has completed.");
 
     if (error) {
