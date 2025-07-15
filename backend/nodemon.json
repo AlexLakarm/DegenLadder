@@ -1,0 +1,7 @@
+{
+  "watch": ["api/", "lib/", "scripts/", "worker.js"],
+  "ext": "js,json",
+  "ignore": ["*.test.js", "node_modules/"],
+  "verbose": true,
+  "exec": "node -r dotenv/config api/index.js"
+} 

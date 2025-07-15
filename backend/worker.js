@@ -351,16 +351,35 @@ async function runWorker(userAddress = null) {
   console.log("\n--- Fin du Worker ---");
   console.log(`[runWorker] Execution summary: ${successfulUsers} users succeeded, ${failedUsers} users failed.`);
 
-  try {
-    const { data, error } = await supabase
-      .from('system_status')
-      .update({ trades_updated_at: new Date().toISOString() })
-      .eq('id', 1);
+  // La mise à jour du timestamp global ne se fait que si on est en mode "tous les utilisateurs" (cron)
+  // et non lors de l'ajout d'un seul utilisateur.
+  if (userAddress === null) {
+    try {
+      const { data, error } = await supabase
+        .from('system_status')
+        .update({ trades_updated_at: new Date().toISOString() })
+        .eq('id', 1);
 
-    if (error) throw error;
-    console.log("Successfully updated trades_updated_at timestamp.");
-  } catch (error) {
-    console.error("Error updating trades_updated_at:", error.message || error);
+      if (error) throw error;
+      console.log("Successfully updated global trades_updated_at timestamp.");
+    } catch (error) {
+      console.error("Error updating global trades_updated_at:", error.message || error);
+    }
+  } else {
+    console.log("[runWorker] Single user mode: Global timestamp not updated.");
+
+    // En mode utilisateur unique, on met à jour son timestamp personnel
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ last_scanned_at: new Date().toISOString() })
+        .eq('address', userAddress);
+      
+      if (error) throw error;
+      console.log(`Successfully updated last_scanned_at for user ${userAddress}.`);
+    } catch (error) {
+      console.error(`Error updating last_scanned_at for user ${userAddress}:`, error.message || error);
+    }
   }
 }
 

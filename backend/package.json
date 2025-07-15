@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node api/index.js",
-    "dev": "nodemon -r dotenv/config api/index.js",
+    "dev": "nodemon",
     "start:api": "node -r dotenv/config api/index.js",
     "start:worker": "node -r dotenv/config worker.js",
     "add-user": "node scripts/addUser.js",
