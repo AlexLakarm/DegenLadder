@@ -20,22 +20,32 @@ async function getFullHistory(address) {
   console.log(`Starting full history fetch from ${process.env.SOLANA_ENV === 'devnet' ? 'DEVNET' : 'MAINNET'}...`);
 
   while (true) {
-    const fetchUrl = lastSignature ? `${url}&before=${lastSignature}` : url;
-    // On utilise axios pour les requêtes HTTP
-    const { data } = await axios.get(fetchUrl);
-
-    if (!data || data.length === 0) {
-      console.log("No more transactions found.");
-      break;
-    }
-
-    transactions.push(...data);
-    lastSignature = data[data.length - 1].signature;
-    console.log(`Fetched batch of ${data.length} transactions. Total: ${transactions.length}. Continuing...`);
-
-    if (transactions.length > 500) {
-        console.log("Stopping fetch at 500 transactions for development purposes.");
+    try {
+      const fetchUrl = lastSignature ? `${url}&before=${lastSignature}` : url;
+      // On utilise axios pour les requêtes HTTP
+      const { data } = await axios.get(fetchUrl);
+  
+      if (!data || data.length === 0) {
+        console.log("No more transactions found.");
         break;
+      }
+  
+      transactions.push(...data);
+      lastSignature = data[data.length - 1].signature;
+      console.log(`Fetched batch of ${data.length} transactions. Total: ${transactions.length}. Continuing...`);
+  
+      if (transactions.length > 500) {
+          console.log("Stopping fetch at 500 transactions for development purposes.");
+          break;
+      }
+    } catch (error) {
+      if (error.response && error.response.status === 429) {
+        console.warn('Rate limited by Helius API. Waiting 1 second before retrying...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue; // Réessayer la même requête
+      }
+      // Pour les autres erreurs, on les lance pour être capturées plus haut
+      throw error;
     }
   }
 
@@ -169,6 +179,7 @@ async function analyzeAndStoreTrades(address, platform) {
 
     if (error) {
       console.error(`Erreur lors de l'upsert dans ${tableName}:`, error.message);
+      throw error;
     } else {
       console.log(`Données pour ${address} enregistrées dans ${tableName} avec succès !`);
     }
@@ -221,49 +232,68 @@ async function runWorker(userAddress = null) {
     return;
   }
 
-  console.log(`[runWorker] Starting parallel processing for ${usersToProcess.length} users...`);
+  const CHUNK_SIZE = 4;
+  const DELAY_BETWEEN_CHUNKS = 1000;
+  let allResults = [];
 
-  // Utiliser Promise.all pour traiter tous les utilisateurs en parallèle
-  const userProcessingPromises = usersToProcess.map(address => {
-    return (async () => {
-      console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
-      try {
-        // Lancer les analyses pour les deux plateformes en parallèle pour un même utilisateur
-        await Promise.all([
-          analyzeAndStoreTrades(address, 'pump'),
-          analyzeAndStoreTrades(address, 'bonk')
-        ]);
-        console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-        return { status: 'fulfilled', address };
-      } catch (error) {
-        console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
-        return { status: 'rejected', address, reason: error.message };
-      }
-    })();
+  console.log(`[runWorker] Starting processing for ${usersToProcess.length} users in chunks of ${CHUNK_SIZE}...`);
+
+  for (let i = 0; i < usersToProcess.length; i += CHUNK_SIZE) {
+    const chunk = usersToProcess.slice(i, i + CHUNK_SIZE);
+    console.log(`\n--- Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(usersToProcess.length / CHUNK_SIZE)} with ${chunk.length} users ---`);
+    
+    const userProcessingPromises = chunk.map(address => {
+      return (async () => {
+        console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
+        try {
+          await Promise.all([
+            analyzeAndStoreTrades(address, 'pump'),
+            analyzeAndStoreTrades(address, 'bonk')
+          ]);
+          console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+          return { status: 'fulfilled', address };
+        } catch (error) {
+          console.error(`Erreur lors du traitement de l'adresse ${address}:`, error.message);
+          return { status: 'rejected', address, reason: error.message };
+        }
+      })();
+    });
+
+    const chunkResults = await Promise.allSettled(userProcessingPromises);
+    allResults.push(...chunkResults);
+    
+    if (i + CHUNK_SIZE < usersToProcess.length) {
+      console.log(`--- Chunk completed. Waiting ${DELAY_BETWEEN_CHUNKS}ms before next chunk... ---`);
+      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CHUNKS));
+    }
+  }
+
+  console.log("\n[runWorker] All user processing tasks have completed.");
+  
+  let successfulUsers = 0;
+  let failedUsers = 0;
+  allResults.forEach(result => {
+    if (result.status === 'fulfilled' && result.value.status === 'fulfilled') {
+      successfulUsers++;
+    } else {
+      failedUsers++;
+    }
   });
 
-  console.log("[runWorker] All user processing tasks have been launched. Awaiting completion...");
-  const results = await Promise.allSettled(userProcessingPromises);
-  console.log("[runWorker] All user processing tasks have completed.");
-
   console.log("\n--- Fin du Worker ---");
+  console.log(`[runWorker] Execution summary: ${successfulUsers} users succeeded, ${failedUsers} users failed.`);
 
-  const successfulUsers = results.filter(result => result.status === 'fulfilled').length;
-  const failedUsers = results.filter(result => result.status === 'rejected');
+  try {
+    const { data, error } = await supabase
+      .from('app_state')
+      .update({ trades_updated_at: new Date().toISOString() })
+      .eq('id', 1);
 
-  console.log(`[runWorker] Execution summary: ${successfulUsers} users succeeded, ${failedUsers.length} users failed.`);
-
-  if (failedUsers.length > 0) {
-    const failedUserDetails = failedUsers.map(result => result.reason ? `${result.reason.address} (Reason: ${result.reason.reason})` : 'unknown').join(', ');
-    throw new Error(`Le traitement a échoué pour ${failedUsers.length} utilisateur(s): ${failedUserDetails}`);
+    if (error) throw error;
+    console.log("Successfully updated trades_updated_at timestamp.");
+  } catch (error) {
+    console.error("Error updating trades_updated_at:", error.message || error);
   }
 }
 
-// Exporter la fonction pour qu'elle puisse être utilisée par le serveur
-module.exports = { runWorker };
-
-// Conserver la possibilité de lancer le worker en standalone pour le débogage
-if (require.main === module) {
-  console.log("Lancement du worker en mode standalone...");
-  runWorker();
-} 
+module.exports = { runWorker, getFullHistory, analyzeAndStoreTrades }; 
