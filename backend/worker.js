@@ -179,17 +179,17 @@ async function analyzeAndStoreTrades(address, platform) {
 
 // Nouvelle fonction pour récupérer tous les utilisateurs uniques depuis les tables de trades
 async function getTrackedUsers() {
-  console.log("Fetching unique users from 'users' table...");
+  console.log("[getTrackedUsers] Starting fetch for unique users from 'users' table...");
   
   const { data: users, error } = await supabase.from('users').select('address');
 
   if (error) {
-    console.error("Error fetching users:", error);
+    console.error("[getTrackedUsers] Error fetching users from Supabase:", error);
     return [];
   }
 
   const userAddresses = users.map(u => u.address);
-  console.log(`Found ${userAddresses.length} unique users to track.`);
+  console.log(`[getTrackedUsers] Successfully fetched ${userAddresses.length} unique users.`);
   return userAddresses;
 }
 
@@ -200,8 +200,7 @@ async function runWorker(userAddress = null) {
   // Vérification des variables d'environnement
   if (!HELIUS_API_KEY) {
     console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
-    console.log("Veuillez vous assurer que votre fichier .env est correctement configuré.");
-    return; // On pourrait aussi lancer une erreur ici
+    return;
   }
 
   console.log("--- Lancement du Worker ---");
@@ -209,40 +208,54 @@ async function runWorker(userAddress = null) {
   let usersToProcess = [];
 
   if (userAddress) {
-    console.log(`Mode ciblé : Traitement de l'utilisateur ${userAddress}`);
+    console.log(`[runWorker] Target mode: Processing single user ${userAddress}`);
     usersToProcess.push(userAddress);
   } else {
-    console.log("Mode global : Traitement de tous les utilisateurs suivis.");
+    console.log("[runWorker] Global mode: Starting to fetch all tracked users.");
     usersToProcess = await getTrackedUsers();
+    console.log(`[runWorker] Finished fetching users. Ready to process ${usersToProcess.length} users.`);
   }
 
   if (usersToProcess.length === 0) {
-    console.log("Aucun utilisateur à traiter. Fin du worker.");
+    console.log("[runWorker] No users to process. Exiting worker.");
     return;
   }
 
-  const failedUsers = [];
+  console.log(`[runWorker] Starting parallel processing for ${usersToProcess.length} users...`);
 
-  // Traiter chaque utilisateur
-  for (const address of usersToProcess) {
-    console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
-    try {
-      // On lance les analyses pour les deux plateformes en parallèle
-      await Promise.all([
-        analyzeAndStoreTrades(address, 'pump'),
-        analyzeAndStoreTrades(address, 'bonk')
-      ]);
-      console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-    } catch (error) {
-      console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
-      failedUsers.push(address);
-    }
-  }
+  // Utiliser Promise.all pour traiter tous les utilisateurs en parallèle
+  const userProcessingPromises = usersToProcess.map(address => {
+    return (async () => {
+      console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
+      try {
+        // Lancer les analyses pour les deux plateformes en parallèle pour un même utilisateur
+        await Promise.all([
+          analyzeAndStoreTrades(address, 'pump'),
+          analyzeAndStoreTrades(address, 'bonk')
+        ]);
+        console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+        return { status: 'fulfilled', address };
+      } catch (error) {
+        console.error(`Erreur lors du traitement de l'adresse ${address}:`, error);
+        return { status: 'rejected', address, reason: error.message };
+      }
+    })();
+  });
+
+  console.log("[runWorker] All user processing tasks have been launched. Awaiting completion...");
+  const results = await Promise.allSettled(userProcessingPromises);
+  console.log("[runWorker] All user processing tasks have completed.");
 
   console.log("\n--- Fin du Worker ---");
 
+  const successfulUsers = results.filter(result => result.status === 'fulfilled').length;
+  const failedUsers = results.filter(result => result.status === 'rejected');
+
+  console.log(`[runWorker] Execution summary: ${successfulUsers} users succeeded, ${failedUsers.length} users failed.`);
+
   if (failedUsers.length > 0) {
-    throw new Error(`Le traitement a échoué pour ${failedUsers.length} utilisateur(s): ${failedUsers.join(', ')}`);
+    const failedUserDetails = failedUsers.map(result => result.reason ? `${result.reason.address} (Reason: ${result.reason.reason})` : 'unknown').join(', ');
+    throw new Error(`Le traitement a échoué pour ${failedUsers.length} utilisateur(s): ${failedUserDetails}`);
   }
 }
 
