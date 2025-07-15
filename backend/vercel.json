@@ -1,19 +1,13 @@
 {
   "functions": {
-    "server.js": {
+    "api/index.js": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cron/run-worker",
+      "path": "/api",
       "schedule": "0 8 * * *"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/server.js"
     }
   ]
 } 

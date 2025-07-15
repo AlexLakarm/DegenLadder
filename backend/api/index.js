@@ -1,10 +1,10 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const express = require('express');
 const cors = require('cors');
-const supabase = require('./lib/supabaseClient');
-const { runWorker } = require('./worker'); // Importer la logique du worker renommée
+const supabase = require('../lib/supabaseClient');
+const { runWorker } = require('../worker'); // Importer la logique du worker renommée
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -316,42 +316,6 @@ app.get('/api/cron/run-worker', async (req, res) => {
     }
 });
 
-// Route de diagnostic pour tester la connexion à Supabase
-app.get('/api/test-supabase', async (req, res) => {
-    console.log("DIAGNOSTIC: Received request for /api/test-supabase");
-    try {
-        console.log("DIAGNOSTIC: Attempting to connect to Supabase and fetch one user...");
-        const { data, error } = await supabase
-            .from('users')
-            .select('address')
-            .limit(1);
-
-        console.log("DIAGNOSTIC: Supabase query finished.");
-
-        if (error) {
-            console.error("DIAGNOSTIC: Supabase returned an error:", error);
-            return res.status(500).json({
-                message: "Supabase returned an error.",
-                errorDetails: error,
-            });
-        }
-
-        console.log("DIAGNOSTIC: Supabase query successful. Data:", data);
-        res.status(200).json({
-            message: "Successfully connected to Supabase and fetched data.",
-            data: data,
-        });
-
-    } catch (e) {
-        console.error("DIAGNOSTIC: A critical exception occurred while testing Supabase connection.", e);
-        res.status(500).json({
-            message: "A critical exception occurred.",
-            errorDetails: e,
-        });
-    }
-});
-
-
 // Route pour récupérer le statut du système (timestamps de mise à jour)
 app.get('/status', async (req, res) => {
     try {
@@ -372,9 +336,13 @@ app.get('/status', async (req, res) => {
 });
 
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+// On n'écoute plus ici, on exporte pour Vercel
+// app.listen(port, () => {
+//     console.log(`Server is running on port ${port}`);
+// });
+
+// Quand on déploie sur Vercel, on n'écoute pas sur un port, on exporte l'app Express.
+module.exports = app;
 
 // --- ANCIENNE LOGIQUE DE WORKER AUTONOME MISE EN COMMENTAIRE ---
 // setInterval(async () => {

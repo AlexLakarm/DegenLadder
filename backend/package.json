@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node api/index.js",
     "build": "echo 'No build step required'",
-    "dev": "nodemon -r dotenv/config server.js",
-    "start:api": "node -r dotenv/config server.js",
+    "dev": "nodemon -r dotenv/config api/index.js",
+    "start:api": "node -r dotenv/config api/index.js",
     "start:worker": "node -r dotenv/config worker.js",
     "add-user": "node scripts/addUser.js",
     "test": "echo \"Error: no test specified\" && exit 1"
