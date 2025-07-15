@@ -53,12 +53,67 @@ async function getFullHistory(address) {
   return transactions;
 }
 
+async function getRecentHistory(address, lastUpdateTimestamp) {
+  const apiBase = process.env.SOLANA_ENV === 'devnet' 
+    ? 'https://api-devnet.helius.xyz' 
+    : 'https://api.helius.xyz';
+  const url = `${apiBase}/v0/addresses/${address}/transactions?api-key=${HELIUS_API_KEY}`;
+  const transactions = [];
+  let lastSignature = null;
+  const lastUpdateDate = new Date(lastUpdateTimestamp);
+
+  console.log(`Starting recent history fetch from ${process.env.SOLANA_ENV === 'devnet' ? 'DEVNET' : 'MAINNET'} since ${lastUpdateTimestamp}...`);
+
+  while (true) {
+    try {
+      const fetchUrl = lastSignature ? `${url}&before=${lastSignature}` : url;
+      const { data } = await axios.get(fetchUrl);
+
+      if (!data || data.length === 0) {
+        console.log("No more new transactions found.");
+        break;
+      }
+
+      const olderTxIndex = data.findIndex(tx => new Date(tx.timestamp * 1000) < lastUpdateDate);
+      
+      if (olderTxIndex !== -1) {
+        transactions.push(...data.slice(0, olderTxIndex));
+        console.log(`Found a transaction older than last update. Stopping fetch.`);
+        break; 
+      }
+      
+      transactions.push(...data);
+      lastSignature = data[data.length - 1].signature;
+
+      if (transactions.length > 500) {
+        console.log("Stopping fetch at 500 transactions for safety.");
+        break;
+      }
+
+    } catch (error) {
+      if (error.response && error.response.status === 429) {
+        console.warn('Rate limited by Helius API. Waiting 1 second before retrying...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  console.log(`Finished fetching recent history. Total new transactions found: ${transactions.length}`);
+  return transactions;
+}
+
+
 // La fonction getPlatformActivity est maintenant renommée en analyzeAndStoreTrades
 // et elle prend en charge l'écriture dans la base de données.
-async function analyzeAndStoreTrades(address, platform) {
+async function analyzeAndStoreTrades(address, platform, lastUpdateTimestamp = null) {
   const platformSuffix = platform === 'pump' ? 'pump' : 'bonk';
   console.log(`Analyzing history for ${address} on platform ".${platformSuffix}"...`);
-  const allTransactions = await getFullHistory(address);
+  
+  const allTransactions = lastUpdateTimestamp 
+    ? await getRecentHistory(address, lastUpdateTimestamp)
+    : await getFullHistory(address);
 
   // Étape 1: Agréger toutes les données par token, comme avant.
   const tradesData = {};
@@ -217,6 +272,7 @@ async function runWorker(userAddress = null) {
   console.log("--- Lancement du Worker ---");
   
   let usersToProcess = [];
+  let lastUpdateTimestamp = null;
 
   if (userAddress) {
     console.log(`[runWorker] Target mode: Processing single user ${userAddress}`);
@@ -225,6 +281,15 @@ async function runWorker(userAddress = null) {
     console.log("[runWorker] Global mode: Starting to fetch all tracked users.");
     usersToProcess = await getTrackedUsers();
     console.log(`[runWorker] Finished fetching users. Ready to process ${usersToProcess.length} users.`);
+
+    // En mode global (cron), on récupère le timestamp de la dernière mise à jour
+    const { data: appState, error } = await supabase.from('app_state').select('trades_updated_at').eq('id', 1).single();
+    if (error) {
+      console.error("Could not fetch last update timestamp, proceeding with full scan as a fallback.", error);
+    } else {
+      lastUpdateTimestamp = appState.trades_updated_at;
+      console.log(`[runWorker] Will fetch transactions since last update at: ${lastUpdateTimestamp}`);
+    }
   }
 
   if (usersToProcess.length === 0) {
@@ -247,8 +312,8 @@ async function runWorker(userAddress = null) {
         console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
         try {
           await Promise.all([
-            analyzeAndStoreTrades(address, 'pump'),
-            analyzeAndStoreTrades(address, 'bonk')
+            analyzeAndStoreTrades(address, 'pump', lastUpdateTimestamp),
+            analyzeAndStoreTrades(address, 'bonk', lastUpdateTimestamp)
           ]);
           console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
           return { status: 'fulfilled', address };
