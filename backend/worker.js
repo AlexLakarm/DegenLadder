@@ -283,7 +283,7 @@ async function runWorker(userAddress = null) {
     console.log(`[runWorker] Finished fetching users. Ready to process ${usersToProcess.length} users.`);
 
     // En mode global (cron), on récupère le timestamp de la dernière mise à jour
-    const { data: appState, error } = await supabase.from('app_state').select('trades_updated_at').eq('id', 1).single();
+    const { data: appState, error } = await supabase.from('system_status').select('trades_updated_at').eq('id', 1).single();
     if (error) {
       console.error("Could not fetch last update timestamp, proceeding with full scan as a fallback.", error);
     } else {
@@ -350,7 +350,7 @@ async function runWorker(userAddress = null) {
 
   try {
     const { data, error } = await supabase
-      .from('app_state')
+      .from('system_status')
       .update({ trades_updated_at: new Date().toISOString() })
       .eq('id', 1);
 
