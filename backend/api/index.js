@@ -12,6 +12,17 @@ const port = process.env.PORT || 3000;
 app.use(cors()); // Activation de CORS pour toutes les routes
 app.use(express.json());
 
+// Définir la route cron pour accepter les requêtes GET
+app.get('/api/cron', async (req, res) => {
+  console.log('Cron job started via GET request');
+  try {
+    // ... existing code ...
+  } catch (error) {
+    console.error('Error during cron job execution:', error);
+    res.status(500).send('Server Error: Cron job failed.');
+  }
+});
+
 // Helper function pour calculer le rang d'un utilisateur en temps réel
 async function calculateUserRank(userAddress) {
   let totalDegenScore = 0;
