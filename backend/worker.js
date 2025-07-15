@@ -179,34 +179,18 @@ async function analyzeAndStoreTrades(address, platform) {
 
 // Nouvelle fonction pour récupérer tous les utilisateurs uniques depuis les tables de trades
 async function getTrackedUsers() {
-  console.log("WORKER-DIAG: Entering getTrackedUsers function...");
-  try {
-    console.log("WORKER-DIAG: Attempting to query Supabase for the user list...");
-    const { data: users, error } = await supabase
-        .from('users')
-        .select('address')
-        .limit(10); // LIMITATION POUR LE DIAGNOSTIC
-    console.log("WORKER-DIAG: Supabase query has completed.");
+  console.log("Fetching unique users from 'users' table...");
+  
+  const { data: users, error } = await supabase.from('users').select('address');
 
-    if (error) {
-      console.error("WORKER-DIAG: Supabase returned an error while fetching users:", error);
-      throw new Error(`Failed to fetch users from Supabase: ${error.message}`);
-    }
-
-    if (!users) {
-      console.warn("WORKER-DIAG: Supabase returned a null/undefined user list. Assuming 0 users.");
-      return [];
-    }
-
-    const userAddresses = users.map(u => u.address);
-    console.log(`WORKER-DIAG: Successfully found ${userAddresses.length} unique users to track.`);
-    return userAddresses;
-
-  } catch (e) {
-    console.error("WORKER-DIAG: A critical error occurred within the getTrackedUsers function.", e);
-    // Propager l'erreur pour que le processus parent (runWorker) s'arrête et log l'échec.
-    throw e;
+  if (error) {
+    console.error("Error fetching users:", error);
+    return [];
   }
+
+  const userAddresses = users.map(u => u.address);
+  console.log(`Found ${userAddresses.length} unique users to track.`);
+  return userAddresses;
 }
 
 // --- POINT D'ENTRÉE DE LA LOGIQUE DU WORKER ---

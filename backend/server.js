@@ -295,41 +295,25 @@ app.post('/user/connect', async (req, res) => {
 
 
 // --- ENDPOINT POUR LE CRON JOB ---
-app.get('/api/cron/run-worker', (req, res) => {
+app.get('/api/cron/run-worker', async (req, res) => {
     // Sécurisation de l'endpoint
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return res.status(401).send('Unauthorized');
     }
   
-    // On lance la logique du worker en tâche de fond
-    console.log("Cron job received. Worker logic initiated for all users.");
-    runWorker() // Appel sans adresse pour le scan global
-      .then(() => {
-        console.log("BACKGROUND: Global worker scan completed successfully.");
-        console.log("BACKGROUND: Attempting to update trades_updated_at timestamp...");
-        // Mise à jour du timestamp dans la nouvelle table et colonne
-        return supabase
-          .from('system_status')
-          .update({ trades_updated_at: new Date().toISOString() })
-          .eq('id', true)
-          .select(); // Ajouter .select() pour que Supabase retourne la ligne mise à jour
-      })
-      .then((response) => {
-        // La réponse de Supabase contient { data, error }
-        if (response.error) {
-          console.error("BACKGROUND: Supabase update failed!", response.error);
-        } else {
-          console.log("BACKGROUND: trades_updated_at timestamp updated successfully.");
-          console.log("BACKGROUND: Updated data:", response.data);
-        }
-      })
-      .catch(err => {
-        // Ce catch interceptera maintenant les erreurs venant de runWorker()
-        console.error("BACKGROUND: Worker process failed and timestamp was NOT updated.", err);
-      });
-  
-    res.status(202).send('Accepted: Worker process started.');
+    console.log("Cron job received. Attempting to run the full worker process and awaiting completion...");
+    
+    try {
+      // On AWAIT maintenant le worker. La réponse ne sera envoyée qu'après la fin.
+      await runWorker();
+      console.log("Worker process completed successfully.");
+      // On ne met PAS à jour le timestamp ici, c'est déjà fait dans la chaîne de promesses du worker.
+      res.status(200).send('Success: Worker process finished.');
+    } catch (err) {
+      console.error("Worker process failed during execution.", err);
+      res.status(500).send(`Server Error: Worker process failed. ${err.message}`);
+    }
 });
 
 // Route de diagnostic pour tester la connexion à Supabase
