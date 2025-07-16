@@ -79,7 +79,7 @@ const StatBox = ({ icon, label, value, valueColor }: { icon: string, label: stri
 };
 
 
-export default function DetailsScreen() {
+export function DetailsScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
   const route = useRoute<any>();
