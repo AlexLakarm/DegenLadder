@@ -251,7 +251,7 @@ app.get('/user/:userAddress/history', async (req, res) => {
             const tableName = `trades_${platform}`;
             const { data, error } = await supabase
                 .from(tableName)
-                .select('token_mint, pnl_sol, status, last_sell_at')
+                .select('token_mint, pnl_sol, status, last_sell_at, degen_score')
                 .eq('user_address', userAddress);
 
             if (error) {
