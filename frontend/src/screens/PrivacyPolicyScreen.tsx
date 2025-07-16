@@ -55,7 +55,7 @@ export function PrivacyPolicyScreen() {
 
         <Text style={styles.heading}>7. Contact Us</Text>
         <Text style={styles.paragraph}>
-          For any questions regarding this privacy policy, please contact us at [your contact email address].
+          For any questions regarding this privacy policy, please contact us at degenrank-legal@gmail.com.
         </Text>
       </View>
     </ScrollView>
