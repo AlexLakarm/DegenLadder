@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Alert } from "react-native";
-import { Card, List, IconButton, Text, Title, useTheme } from "react-native-paper";
+import { Card, List, IconButton, Text, Title, useTheme, SegmentedButtons, Chip } from "react-native-paper";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthorization } from "../utils/useAuthorization";
@@ -44,6 +44,41 @@ async function refreshUser(userAddress: string) {
   return response.json();
 }
 
+const StatBox = ({ icon, label, value, valueColor }: { icon: string, label: string, value: any, valueColor?: string }) => {
+  const theme = useTheme();
+  const styles = StyleSheet.create({
+    statBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      width: '48%',
+      marginBottom: 12,
+    },
+    statIcon: {
+      marginBottom: 8,
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    statLabel: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });
+
+  return (
+    <View style={styles.statBox}>
+      <IconButton icon={icon} size={24} style={styles.statIcon} />
+      <Text style={[styles.statValue, { color: valueColor || theme.colors.onSurface }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+};
+
+
 export default function DetailsScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
@@ -52,6 +87,8 @@ export default function DetailsScreen() {
   const addressFromRoute = route.params?.userAddress;
   const userAddress = addressFromRoute || selectedAccount?.publicKey.toBase58();
   const isMyOwnProfile = userAddress === selectedAccount?.publicKey.toBase58();
+  const [selectedPlatform, setSelectedPlatform] = useState('pump');
+
 
   const queryClient = useQueryClient();
 
@@ -98,125 +135,165 @@ export default function DetailsScreen() {
       ? (userScanDate > globalUpdateDate ? userScanDate : globalUpdateDate) 
       : userScanDate || globalUpdateDate;
 
-    return `Last update: ${displayDate!.toLocaleString()}`;
+    return `Updated: ${displayDate!.toLocaleString()}`;
   };
 
+  const globalStats = stats?.globalStats;
+  const platformStats = stats?.platformStats;
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.titleContainer}>
-        <Title style={[styles.title, { color: theme.colors.onSurface }]}>
-          {isMyOwnProfile ? 'Your degenStats' : 'User Stats'}
-        </Title>
-        {userAddress && (
-          refreshMutation.isPending ? (
-            <ActivityIndicator style={styles.refreshIcon} />
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Header Section */}
+      {userAddress && (
+        <View style={styles.headerContainer}>
+          <View>
+            <Title style={styles.headerTitle}>{isMyOwnProfile ? 'Your DegenStats' : 'User Stats'}</Title>
+            <Text style={styles.headerAddress}>{userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 6)}</Text>
+          </View>
+          {refreshMutation.isPending ? (
+            <ActivityIndicator />
           ) : (
             <IconButton
               icon="refresh"
-              size={24}
-              style={styles.refreshIcon}
+              size={28}
               onPress={() => refreshMutation.mutate()}
             />
-          )
-        )}
-      </View>
+          )}
+        </View>
+      )}
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginBottom: 8 }} />
-      ) : stats?.globalStats?.last_scanned_at ? (
-        <Text style={styles.date}>{getDisplayDate()}</Text>
-      ) : (
-        <Text style={styles.date}>User not scanned yet.</Text>
-      )}
+        <ActivityIndicator style={{ marginTop: 40 }} size="large" />
+      ) : isError ? (
+         <Text style={{color: 'red', textAlign: 'center', marginTop: 40}}>Error fetching user stats.</Text>
+      ) : userAddress && globalStats ? (
+        <>
+          {/* Date and PNL */}
+          <Text style={styles.date}>{getDisplayDate()}</Text>
 
-      {!userAddress && (
+          {/* PNL and Score */}
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryLabel}>Total PNL (SOL)</Text>
+              <Title style={[styles.summaryValue, { color: (globalStats.total_pnl_sol ?? 0) >= 0 ? '#22c55e' : '#ef4444' }]}>
+                {(globalStats.total_pnl_sol ?? 0).toFixed(4)}
+              </Title>
+            </View>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryLabel}>Degen Score</Text>
+              <Title style={styles.summaryValue}>
+                {Math.round(globalStats.total_degen_score ?? 0)} pts
+              </Title>
+            </View>
+          </View>
+          
+          {/* Global Stats Grid */}
+          <View style={styles.statsGrid}>
+            <StatBox 
+              icon="swap-vertical-bold" 
+              label="Total Trades" 
+              value={globalStats.total_trades ?? 0} 
+            />
+            <StatBox 
+              icon="chart-pie" 
+              label="Win Rate" 
+              value={`${(globalStats.win_rate ?? 0).toFixed(1)}%`}
+              valueColor={(globalStats.win_rate ?? 0) >= 50 ? '#22c55e' : '#ef4444'}
+            />
+            <StatBox 
+              icon="arrow-up-bold-box" 
+              label="Wins" 
+              value={globalStats.total_wins ?? 0}
+              valueColor="#22c55e"
+            />
+            <StatBox 
+              icon="arrow-down-bold-box" 
+              label="Losses" 
+              value={globalStats.total_losses ?? 0}
+              valueColor="#ef4444"
+            />
+          </View>
+
+          {/* Platform Stats Section */}
+          {platformStats && (
+            <View style={styles.sectionContainer}>
+              <Title style={styles.sectionTitle}>Platform Stats</Title>
+              <SegmentedButtons
+                value={selectedPlatform}
+                onValueChange={setSelectedPlatform}
+                buttons={[
+                  { value: 'pump', label: 'pump.fun' },
+                  { value: 'bonk', label: 'letsbonk.fun' },
+                ]}
+                style={{ marginBottom: 16 }}
+              />
+              <Card style={styles.card} mode="elevated">
+                 <Card.Content>
+                   <List.Item
+                     title="PNL (SOL)"
+                     titleStyle={styles.listItemTitle}
+                     right={() => <Text style={{fontSize: 16, color: platformStats[selectedPlatform]?.pnl >= 0 ? '#22c55e' : '#ef4444'}}>{platformStats[selectedPlatform]?.pnl.toFixed(4)}</Text>}
+                   />
+                   <List.Item
+                     title="Degen Score"
+                     titleStyle={styles.listItemTitle}
+                     right={() => <Text style={{fontSize: 16}}>{Math.round(platformStats[selectedPlatform]?.degen_score ?? 0)} pts</Text>}
+                   />
+                   <List.Item
+                     title="Wins"
+                     titleStyle={styles.listItemTitle}
+                     right={() => <Text style={{fontSize: 16, color: '#22c55e'}}>{platformStats[selectedPlatform]?.wins}</Text>}
+                   />
+                   <List.Item
+                     title="Losses"
+                     titleStyle={styles.listItemTitle}
+                     right={() => <Text style={{fontSize: 16, color: '#ef4444'}}>{platformStats[selectedPlatform]?.losses}</Text>}
+                   />
+                 </Card.Content>
+               </Card>
+            </View>
+          )}
+
+          {/* Recent History Section */}
+          {history && history.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Title style={styles.sectionTitle}>Recent Trades</Title>
+              <Card style={styles.card}>
+                <Card.Content>
+                  {history.map((trade: any, index: number) => (
+                    <List.Item
+                      key={index}
+                      title={`${trade.token_name.slice(0, 10)}...`}
+                      description={`Score: ${(trade.degen_score > 0 ? '+' : '')}${Math.round(trade.degen_score ?? 0)} pts`}
+                      left={() => <Text style={{fontSize: 24, marginRight: 12}}>{trade.is_win ? '✅' : '❌'}</Text>}
+                      right={() => (
+                        <View style={{alignItems: 'flex-end'}}>
+                          <Text>{new Date(trade.last_sell_at).toLocaleDateString()}</Text>
+                           <Chip 
+                             style={{
+                               marginTop: 4, 
+                               backgroundColor: trade.platform === 'pump' ? '#E0F2FE' : '#FEF3C7'
+                             }}
+                             textStyle={{color: trade.platform === 'pump' ? '#0284C7' : '#D97706'}}
+                             >
+                             {trade.platform}.fun
+                           </Chip>
+                         </View>
+                      )}
+                    />
+                  ))}
+                </Card.Content>
+              </Card>
+            </View>
+          )}
+
+        </>
+      ) : (
          <View style={{alignItems: 'center', marginTop: 40}}>
-           <Text style={{fontSize: 18, marginBottom: 20, color: theme.colors.onSurface}}>Connect your wallet to see your stats</Text>
+           <Text style={{fontSize: 18, marginBottom: 20, color: theme.colors.onSurface}}>
+            {userAddress ? 'No stats found for this user.' : 'Connect your wallet to see your stats'}
+           </Text>
          </View>
-      )}
-
-      {userAddress && isError && (
-        <Text style={{color: 'red', textAlign: 'center'}}>Error fetching user stats.</Text>
-      )}
-
-      {stats?.globalStats && (
-        <AnimatedBorderCard style={styles.card}>
-            <Title style={styles.cardTitle}>Global Stats</Title>
-            <List.Item
-              title="Total PNL (SOL)"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: (stats.globalStats.total_pnl_sol ?? 0) >= 0 ? 'green' : 'red'}}>{(stats.globalStats.total_pnl_sol ?? 0).toFixed(4)} SOL</Text>}
-            />
-            <List.Item
-              title="Win Rate"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium">{(stats.globalStats.win_rate ?? 0).toFixed(2)}%</Text>}
-            />
-             <List.Item
-              title="Total Trades"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium">{stats.globalStats.total_trades ?? 0}</Text>}
-            />
-            <List.Item
-              title="Wins"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: 'green'}}>{stats.globalStats.total_wins ?? 0}</Text>}
-            />
-            <List.Item
-              title="Losses"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: 'red'}}>{stats.globalStats.total_losses ?? 0}</Text>}
-            />
-        </AnimatedBorderCard>
-      )}
-
-      {stats?.platformStats && Object.keys(stats.platformStats).map((platform) => (
-        <Card key={platform} style={styles.card} mode="elevated">
-          <Card.Title 
-            titleStyle={[styles.cardTitle, {textTransform: 'none'}]} 
-            title={platformDisplayNames[platform] || `${platform}.fun`} 
-          />
-          <Card.Content>
-            <List.Item
-              title="PNL (SOL)"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: stats.platformStats[platform].pnl >= 0 ? 'green' : 'red'}}>{stats.platformStats[platform].pnl.toFixed(4)} SOL</Text>}
-            />
-            <List.Item
-              title="Wins"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: 'green'}}>{stats.platformStats[platform].wins}</Text>}
-            />
-            <List.Item
-              title="Losses"
-              titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: 'red'}}>{stats.platformStats[platform].losses}</Text>}
-            />
-          </Card.Content>
-        </Card>
-      ))}
-      
-      {isLoadingHistory ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
-      ) : isErrorHistory ? (
-        <Text style={{color: 'red', textAlign: 'center'}}>Error fetching trade history.</Text>
-      ) : (
-        history && history.length > 0 && (
-          <Card style={styles.card}>
-            <Card.Title title="Recent Trades" titleStyle={styles.cardTitle} />
-            <Card.Content>
-              {history.map((trade: any, index: number) => (
-                <List.Item
-                  key={index}
-                  title={`${trade.is_win ? '✅' : '❌'} ${trade.token_name.slice(0, 10)}...`}
-                  description={`PNL: ${trade.pnl_sol.toFixed(4)} SOL`}
-                  titleStyle={styles.listItemTitle}
-                  right={() => <Text>{new Date(trade.last_sell_at).toLocaleDateString()}</Text>}
-                />
-              ))}
-            </Card.Content>
-          </Card>
-        )
       )}
     </ScrollView>
   );
@@ -225,34 +302,76 @@ export default function DetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
-  titleContainer: {
+  contentContainer: {
+    padding: 16,
+  },
+  headerContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  title: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    marginVertical: 16,
   },
-  refreshIcon: {
-    marginVertical: 16,
+  headerAddress: {
+    fontSize: 14,
+    color: '#A1A1AA',
+  },
+  pnlAndDateContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  pnl: {
+    fontSize: 36,
+    fontWeight: '800',
+    lineHeight: 44,
   },
   date: {
-    textAlign: 'center',
-    color: '#9CA3AF',
+    color: '#71717A',
     fontSize: 12,
+    textAlign: 'center',
     marginBottom: 16,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+    paddingVertical: 16,
+    backgroundColor: '#18181B',
+    borderRadius: 12,
+  },
+  summaryBox: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#A1A1AA',
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  sectionContainer: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center'
   },
   card: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    backgroundColor: '#18181B',
   },
   listItemTitle: {
     fontSize: 16,
