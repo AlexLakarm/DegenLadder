@@ -29,6 +29,7 @@ export function SettingsScreen() {
           backgroundColor: theme.colors.background,
         }}
       >
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
           title="Settings"
           titleStyle={{

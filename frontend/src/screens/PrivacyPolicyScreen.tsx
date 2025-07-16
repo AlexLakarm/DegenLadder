@@ -10,7 +10,7 @@ export function PrivacyPolicyScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Privacy Policy</Text>
-        <Text style={styles.lastUpdated}>Last updated: July 28, 2024</Text>
+        <Text style={styles.lastUpdated}>Last updated: July 16, 2025</Text>
 
         <Text style={styles.heading}>1. Introduction</Text>
         <Text style={styles.paragraph}>
