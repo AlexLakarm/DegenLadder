@@ -112,11 +112,11 @@ async function getRecentHistory(address, lastUpdateTimestamp) {
 
 // La fonction getPlatformActivity est maintenant renommée en analyzeAndStoreTrades
 // et elle prend en charge l'écriture dans la base de données.
-async function analyzeAndStoreTrades(address, platform, lastUpdateTimestamp = null) {
+async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastUpdateTimestamp = null) {
   const platformSuffix = platform === 'pump' ? 'pump' : 'bonk';
   console.log(`Analyzing history for ${address} on platform ".${platformSuffix}"...`);
   
-  const allTransactions = lastUpdateTimestamp 
+  const allTransactions = scanMode === 'incremental' && lastUpdateTimestamp 
     ? await getRecentHistory(address, lastUpdateTimestamp)
     : await getFullHistory(address);
 
@@ -250,209 +250,221 @@ async function analyzeAndStoreTrades(address, platform, lastUpdateTimestamp = nu
 
 // Nouvelle fonction pour récupérer tous les utilisateurs uniques depuis les tables de trades
 async function getTrackedUsers() {
-  console.log("[getTrackedUsers] Starting fetch for unique users from 'users' table...");
+  console.log('Fetching all tracked users from the database...');
+  const { data, error } = await supabase
+    .from('users')
+    .select('address, last_scanned_at'); // On récupère aussi le timestamp
   
-  const { data: users, error } = await supabase.from('users').select('address');
-
   if (error) {
-    console.error("[getTrackedUsers] Error fetching users from Supabase:", error);
+    console.error('Error fetching tracked users:', error);
     return [];
   }
+  return data;
+}
 
-  const userAddresses = users.map(u => u.address);
-  console.log(`[getTrackedUsers] Successfully fetched ${userAddresses.length} unique users.`);
-  return userAddresses;
+// Modifié pour accepter un mode de scan
+async function analyzeUserHistory(user, scanMode = 'full') {
+  const { address, last_scanned_at } = user;
+  console.log(`--- Début du traitement pour l'adresse: ${address} (mode: ${scanMode}) ---`);
+
+  const lastUpdate = scanMode === 'incremental' ? last_scanned_at : null;
+
+  try {
+    // On analyse les plateformes en série pour réduire la charge sur l'API Helius
+    await analyzeAndStoreTrades(address, 'pump', scanMode, lastUpdate);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Pause d'1 seconde entre les plateformes
+    await analyzeAndStoreTrades(address, 'bonk', scanMode, lastUpdate);
+    
+    console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+    return { success: true, address };
+  } catch (error) {
+    console.error(`Erreur lors du traitement de l'adresse ${address}:`, error.message);
+    return { success: false, address };
+  }
+}
+
+async function processChunk(usersInChunk, scanMode, isSingleUserMode, globalLastUpdate) {
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const user of usersInChunk) {
+        const { address, last_scanned_at } = user;
+        const finalScanMode = isSingleUserMode ? scanMode : 'incremental';
+        // Logique de fallback: on utilise le timestamp de l'utilisateur, ou le timestamp global, ou rien.
+        const lastUpdateTimestamp = finalScanMode === 'incremental' ? (last_scanned_at || globalLastUpdate || null) : null;
+
+        console.log(`--- Début du traitement pour l'adresse: ${address} (mode: ${finalScanMode}) ---`);
+        
+        try {
+            await analyzeAndStoreTrades(address, 'pump', finalScanMode, lastUpdateTimestamp);
+            await analyzeAndStoreTrades(address, 'bonk', finalScanMode, lastUpdateTimestamp);
+            
+            console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
+            
+            const { error: updateScanTimeError } = await supabase
+                .from('users')
+                .update({ last_scanned_at: new Date().toISOString() })
+                .eq('address', address);
+
+            if (updateScanTimeError) {
+                console.error(`Failed to update last_scanned_at for ${address}:`, updateScanTimeError.message);
+            }
+            succeeded++;
+        } catch (error) {
+            console.error(`--- Erreur lors du traitement de l'adresse: ${address} ---`, error);
+            failed++;
+        }
+
+        // On n'ajoute une pause qu'en mode global pour ne pas ralentir les scans uniques.
+        if (!isSingleUserMode) {
+            console.log('--- Pause inter-utilisateur (2s) ---');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+
+    return { succeeded, failed };
+}
+
+async function refreshDegenRank() {
+    console.log('\\nRefreshing materialized view: degen_rank...');
+    const { error } = await supabase.rpc('refresh_degen_rank');
+    if (error) {
+        console.error('Failed to refresh materialized view:', error.message);
+        throw error; // On propage l'erreur pour que l'appelant puisse la gérer
+    } else {
+        console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+    }
 }
 
 // --- POINT D'ENTRÉE DE LA LOGIQUE DU WORKER ---
 // La fonction peut maintenant être ciblée sur un seul utilisateur
 // ou fonctionner en mode global si aucun userAddress n'est fourni.
-async function runWorker(userAddress = null) {
+async function runWorker(userAddress = null, scanMode = 'full') {
   // Vérification des variables d'environnement
   if (!HELIUS_API_KEY) {
-    console.error("Erreur: Des variables d'environnement sont manquantes (HELIUS_API_KEY).");
-    return;
+    throw new Error('HELIUS_API_KEY is not set in the environment variables.');
   }
-
-  console.log("--- Lancement du Worker ---");
   
-  let usersToProcess = [];
-  let lastUpdateTimestamp = null;
-  const globalMode = userAddress === null;
+  console.log('--- Lancement du Worker ---');
+  
+  let usersToProcess;
+  let isSingleUserMode = false;
+  let globalLastUpdate = null; // Pour stocker le timestamp global
 
   if (userAddress) {
     console.log(`[runWorker] Target mode: Processing single user ${userAddress}`);
-    usersToProcess.push(userAddress);
-  } else {
-    console.log("[runWorker] Global mode: Starting to fetch all tracked users.");
-    usersToProcess = await getTrackedUsers();
-    console.log(`[runWorker] Finished fetching users. Ready to process ${usersToProcess.length} users.`);
+    usersToProcess = [{ address: userAddress, last_scanned_at: null }];
+    isSingleUserMode = true;
 
-    // En mode global (cron), on récupère le timestamp de la dernière mise à jour
-    const { data: appState, error } = await supabase.from('system_status').select('trades_updated_at').eq('id', 1).single();
-    if (error) {
-      console.error("Could not fetch last update timestamp, proceeding with full scan as a fallback.", error);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('last_scanned_at')
+      .eq('address', userAddress)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error(`Could not fetch last_scanned_at for ${userAddress}`, error);
+    } else if (user) {
+      usersToProcess[0].last_scanned_at = user.last_scanned_at;
+    }
+  } else {
+    console.log('[runWorker] Global mode: Processing all tracked users...');
+    usersToProcess = await getTrackedUsers();
+    scanMode = 'incremental'; // Le mode global est toujours incrémental
+
+    // En mode global, on récupère le timestamp de la dernière mise à jour réussie
+    const { data: status, error: statusError } = await supabase
+        .from('system_status')
+        .select('last_global_update_at')
+        .eq('id', 1)
+        .single();
+    if (statusError) {
+        console.error('Could not fetch global last update timestamp. Scans might be less efficient.', statusError);
     } else {
-      lastUpdateTimestamp = appState.trades_updated_at;
-      console.log(`[runWorker] Will fetch transactions since last update at: ${lastUpdateTimestamp}`);
+        globalLastUpdate = status.last_global_update_at;
     }
   }
 
-  if (usersToProcess.length === 0) {
-    console.log("[runWorker] No users to process. Exiting worker.");
+  if (!usersToProcess || usersToProcess.length === 0) {
+    console.log('[runWorker] No users to process. Exiting.');
+    console.log('--- Fin du Worker ---');
     return;
   }
 
-  const CHUNK_SIZE = 4;
-  const DELAY_BETWEEN_CHUNKS = 1000;
-  let allResults = [];
+  const chunkSize = 4;
+  const chunks = [];
+  for (let i = 0; i < usersToProcess.length; i += chunkSize) {
+    chunks.push(usersToProcess.slice(i, i + chunkSize));
+  }
 
-  console.log(`[runWorker] Starting processing for ${usersToProcess.length} users in chunks of ${CHUNK_SIZE}...`);
+  console.log(`[runWorker] Starting processing for ${usersToProcess.length} users in chunks of ${chunkSize}...`);
 
-  for (let i = 0; i < usersToProcess.length; i += CHUNK_SIZE) {
-    const chunk = usersToProcess.slice(i, i + CHUNK_SIZE);
-    console.log(`\n--- Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(usersToProcess.length / CHUNK_SIZE)} with ${chunk.length} users (processing serially within chunk) ---`);
-    
-    // On traite les utilisateurs du lot un par un pour ne pas surcharger l'API
-    for (const address of chunk) {
-      console.log(`\n--- Début du traitement pour l'adresse: ${address} ---`);
-      try {
-        // On traite les plateformes en série pour respecter la limite de l'API Helius
-        await analyzeAndStoreTrades(address, 'pump', lastUpdateTimestamp);
-        await analyzeAndStoreTrades(address, 'bonk', lastUpdateTimestamp);
-        
-        console.log(`--- Fin du traitement pour l'adresse: ${address} ---`);
-        // On simule un résultat 'fulfilled' pour le comptage
-        allResults.push({ status: 'fulfilled', value: { status: 'fulfilled', address } });
-      } catch (error) {
-        console.error(`Erreur lors du traitement de l'adresse ${address}:`, error.message);
-        // On simule un résultat 'rejected' pour le comptage
-        allResults.push({ status: 'fulfilled', value: { status: 'rejected', address, reason: error.message } });
-      }
-    }
-    
-    if (i + CHUNK_SIZE < usersToProcess.length) {
-      console.log(`--- Chunk completed. Waiting ${DELAY_BETWEEN_CHUNKS}ms before next chunk... ---`);
-      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CHUNKS));
+  let totalSucceeded = 0;
+  let totalFailed = 0;
+
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`--- Processing chunk ${i + 1}/${chunks.length} with ${chunks[i].length} users (processing serially within chunk) ---`);
+    const { succeeded, failed } = await processChunk(chunks[i], scanMode, isSingleUserMode, globalLastUpdate);
+    totalSucceeded += succeeded;
+    totalFailed += failed;
+
+    // On n'ajoute une pause que s'il y a un autre chunk après
+    if (i < chunks.length - 1) {
+      console.log('--- Pause between chunks (2s) to avoid rate limiting ---');
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
-  console.log("\n[runWorker] All user processing tasks have completed.");
+  console.log('[runWorker] All user processing tasks have completed.');
   
-  let successfulUsers = 0;
-  let failedUsers = 0;
-  allResults.forEach(result => {
-    if (result.status === 'fulfilled' && result.value.status === 'fulfilled') {
-      successfulUsers++;
-    } else {
-      failedUsers++;
-    }
-  });
+  // Après le traitement de tous les utilisateurs
+  const summary = {
+    succeeded: totalSucceeded,
+    failed: totalFailed,
+    total: usersToProcess.length
+  };
+  console.log('[runWorker] Execution summary:', summary);
 
-  console.log("\n--- Fin du Worker ---");
-  console.log(`[runWorker] Execution summary: ${successfulUsers} users succeeded, ${failedUsers} users failed.`);
-
-  // La mise à jour du timestamp global ne se fait que si on est en mode "tous les utilisateurs" (cron)
-  // et non lors de l'ajout d'un seul utilisateur.
-  if (userAddress === null) {
+  if (isSingleUserMode) {
+    console.log('[runWorker] Single user mode: Global timestamp not updated.');
+    // Mettre à jour last_scanned_at pour l'utilisateur unique
     try {
-      const { data, error } = await supabase
-        .from('system_status')
-        .update({ trades_updated_at: new Date().toISOString() })
-        .eq('id', 1);
-
-      if (error) throw error;
-      console.log("Successfully updated global trades_updated_at timestamp.");
-    } catch (error) {
-      console.error("Error updating global trades_updated_at:", error.message || error);
-    }
-  } else {
-    console.log("[runWorker] Single user mode: Global timestamp not updated.");
-
-    // En mode utilisateur unique, on met à jour son timestamp personnel
-    try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('users')
         .update({ last_scanned_at: new Date().toISOString() })
         .eq('address', userAddress);
-      
-      if (error) throw error;
+      if (updateError) throw updateError;
       console.log(`Successfully updated last_scanned_at for user ${userAddress}.`);
     } catch (error) {
-      console.error(`Error updating last_scanned_at for user ${userAddress}:`, error.message || error);
+      console.error(`Failed to update last_scanned_at for ${userAddress}:`, error);
     }
-  }
-
-  // Après toutes les mises à jour, on rafraîchit la vue matérialisée
-  console.log('\nRefreshing materialized view: degen_rank...');
-  const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
-  if (refreshError) {
-    console.error('Failed to refresh materialized view:', refreshError.message);
+  } else if (totalFailed === 0) {
+    // En mode global, si tout a réussi, on met à jour le timestamp global
+    try {
+      const { error: updateError } = await supabase
+        .from('system_status')
+        .update({ last_global_update_at: new Date().toISOString() })
+        .eq('id', 1);
+      if (updateError) throw updateError;
+      console.log('✅ Global timestamp (last_global_update_at) updated successfully!');
+    } catch (error) {
+      console.error('Failed to update global timestamp:', error);
+    }
   } else {
-    console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+    console.log(`[runWorker] Global scan finished with ${totalFailed} failures. Global timestamp not updated.`);
   }
 
   try {
-    const successCount = successfulUsers.length;
-    const failedCount = failedUsers.length;
-
-    // Mise à jour du timestamp GLOBAL uniquement si le worker a tourné pour TOUS les utilisateurs
-    if (globalMode) {
-      console.log('\\nUpdating global timestamp...');
-      const { error: updateError } = await supabase
-        .from('system_status')
-        .update({ last_global_update_at: new Date().toISOString() })
-        .eq('id', 1);
-      
-      if (updateError) {
-        console.error('Failed to update global timestamp:', updateError.message);
-      } else {
-        console.log('✅ Global timestamp updated successfully.');
-      }
-    }
-
-    // Après toutes les mises à jour, on rafraîchit la vue matérialisée
-    console.log('\\nRefreshing materialized view: degen_rank...');
-    const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
-    if (refreshError) {
-      console.error('Failed to refresh materialized view:', refreshError.message);
-    } else {
-      console.log('✅ Materialized view degen_rank has been refreshed successfully.');
-    }
+    await refreshDegenRank();
   } catch (error) {
-    console.error('An error occurred during worker execution:', error);
-  } finally {
-    // Mise à jour du timestamp GLOBAL uniquement si le worker a tourné pour TOUS les utilisateurs
-    if (globalMode) {
-      console.log('\nUpdating global timestamp...');
-      const { error: updateError } = await supabase
-        .from('system_status')
-        .update({ last_global_update_at: new Date().toISOString() })
-        .eq('id', 1);
-      
-      if (updateError) {
-        console.error('Failed to update global timestamp:', updateError.message);
-      } else {
-        console.log('✅ Global timestamp updated successfully.');
-      }
-    }
-
-    // Après toutes les mises à jour, on rafraîchit la vue matérialisée
-    console.log('\nRefreshing materialized view: degen_rank...');
-    const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
-    if (refreshError) {
-      console.error('Failed to refresh materialized view:', refreshError.message);
-    } else {
-      console.log('✅ Materialized view degen_rank has been refreshed successfully.');
-    }
-
-    console.log('\n[runWorker] Execution summary:', {
-      succeeded: successfulUsers.length,
-      failed: failedUsers.length,
-      total: successfulUsers.length + failedUsers.length,
-    });
-    console.log('--- Fin du Worker ---');
+    console.error('An error occurred during degen_rank refresh:', error);
   }
+  
+  console.log('--- Fin du Worker ---');
+  return summary;
 }
 
-module.exports = { runWorker, getFullHistory, analyzeAndStoreTrades }; 
+module.exports = {
+  runWorker,
+  // On n'exporte plus les fonctions internes
+}; 

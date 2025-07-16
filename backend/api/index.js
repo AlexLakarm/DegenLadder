@@ -176,27 +176,63 @@ app.get('/user/:userAddress/stats', async (req, res) => {
     const { userAddress } = req.params;
 
     try {
-        const { data, error } = await supabase
+        // Étape 1: Récupérer les stats globales depuis la vue matérialisée
+        const { data: globalStats, error: globalError } = await supabase
             .from('degen_rank')
             .select('*')
             .eq('user_address', userAddress)
-            .single(); // On s'attend à un seul résultat
+            .single();
 
-        if (error) {
-            // Si l'utilisateur n'est pas trouvé, on renvoie des stats vides
-            if (error.code === 'PGRST116') {
-                return res.status(200).json({
+        if (globalError && globalError.code !== 'PGRST116') { // On ignore l'erreur si l'user n'est pas trouvé
+            throw globalError;
+        }
+
+        // Étape 2: Calculer les stats par plateforme
+        const platformStats = {};
+        const platforms = ['pump', 'bonk'];
+
+        for (const platform of platforms) {
+            const tableName = `trades_${platform}`;
+            const { data: trades, error: platformError } = await supabase
+                .from(tableName)
+                .select('pnl_sol, status')
+                .eq('user_address', userAddress);
+
+            if (platformError) {
+                console.error(`Error fetching platform stats for ${platform}:`, platformError);
+                continue; // On continue même si une plateforme échoue
+            }
+
+            if (trades) {
+                const stats = trades.reduce((acc, trade) => {
+                    acc.pnl += trade.pnl_sol;
+                    if (trade.status === 'WIN') {
+                        acc.wins++;
+                    } else {
+                        acc.losses++;
+                    }
+                    return acc;
+                }, { pnl: 0, wins: 0, losses: 0 });
+                platformStats[platform] = stats;
+            }
+        }
+
+        // Si globalStats est null (user non trouvé), on renvoie une structure vide
+        if (!globalStats) {
+            return res.status(200).json({
+                globalStats: {
                     total_wins: 0,
                     total_losses: 0,
                     total_pnl_sol: 0,
-                    win_rate: 0, // Ajout du win_rate par défaut
+                    win_rate: 0,
                     last_scanned_at: null,
-                });
-            }
-            throw error;
+                },
+                platformStats,
+            });
         }
 
-        res.status(200).json(data);
+        // Étape 3: Combiner et renvoyer la réponse
+        res.status(200).json({ globalStats, platformStats });
         
     } catch (error) {
         console.error(`An unexpected error occurred while fetching user stats for ${userAddress}:`, error.message);
@@ -275,6 +311,29 @@ app.get('/user/:address/exists', async (req, res) => {
       res.status(500).json({ exists: false, error: 'An internal server error occurred.' });
     }
 });
+
+// Route pour déclencher manuellement le rafraîchissement d'un utilisateur
+app.post('/user/:userAddress/refresh', async (req, res) => {
+    const { userAddress } = req.params;
+
+    try {
+        console.log(`Manual refresh requested for user: ${userAddress}.`);
+
+        // On lance le worker en arrière-plan pour un scan incrémental.
+        // Le frontend n'a pas besoin d'attendre la fin du scan.
+        // NOTE: Le deuxième paramètre 'incremental' sera ajouté à la logique du worker.
+        runWorker(userAddress, 'incremental').catch(err => {
+            console.error(`[BACKGROUND] Error during manual refresh for ${userAddress}:`, err);
+        });
+
+        res.status(202).json({ message: 'Refresh initiated successfully. Data will be updated shortly.' });
+
+    } catch (error) {
+        console.error(`Error during manual refresh for ${userAddress}:`, error.message);
+        res.status(500).json({ error: 'An internal server error occurred.' });
+    }
+});
+
 
 // Route pour connecter un utilisateur
 app.post('/user/connect', async (req, res) => {
