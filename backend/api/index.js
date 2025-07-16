@@ -387,6 +387,42 @@ app.post('/user/connect', async (req, res) => {
     }
 });
 
+// Suppression complète d'un utilisateur (RGPD)
+app.delete('/user/:userAddress', async (req, res) => {
+  const { userAddress } = req.params;
+  try {
+    // Supprimer les trades dans trades_bonk
+    const { error: errorBonk } = await supabase
+      .from('trades_bonk')
+      .delete()
+      .eq('user_address', userAddress);
+    if (errorBonk) throw errorBonk;
+
+    // Supprimer les trades dans trades_pump
+    const { error: errorPump } = await supabase
+      .from('trades_pump')
+      .delete()
+      .eq('user_address', userAddress);
+    if (errorPump) throw errorPump;
+
+    // Supprimer l'utilisateur de la table users
+    const { error: errorUser } = await supabase
+      .from('users')
+      .delete()
+      .eq('address', userAddress);
+    if (errorUser) throw errorUser;
+
+    // Rafraîchir la vue matérialisée degen_rank
+    const { error: errorRefresh } = await supabase.rpc('refresh_degen_rank');
+    if (errorRefresh) throw errorRefresh;
+
+    res.status(200).json({ success: true, message: 'User and all related data deleted.' });
+  } catch (error) {
+    console.error('Error deleting user and related data:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 
 // --- ENDPOINT POUR LE CRON JOB ---
 app.get('/api/cron/run-worker', async (req, res) => {
