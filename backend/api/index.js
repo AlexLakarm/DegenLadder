@@ -174,40 +174,29 @@ app.get('/leaderboard/:platform', async (req, res) => {
 // Route pour récupérer les statistiques d'un utilisateur
 app.get('/user/:userAddress/stats', async (req, res) => {
     const { userAddress } = req.params;
-    const platforms = ['pump', 'bonk'];
-    const stats = {};
 
     try {
-        for (const platform of platforms) {
-            const tableName = `trades_${platform}`;
-            const { data, error } = await supabase
-                .from(tableName)
-                // On sélectionne pnl_sol et status pour déterminer win/loss
-                .select('pnl_sol, status')
-                .eq('user_address', userAddress);
+        const { data, error } = await supabase
+            .from('degen_rank')
+            .select('*')
+            .eq('user_address', userAddress)
+            .single(); // On s'attend à un seul résultat
 
-            if (error) {
-                console.error(`Error fetching user stats from ${tableName} for ${userAddress}:`, error.message);
-                continue; 
+        if (error) {
+            // Si l'utilisateur n'est pas trouvé, on renvoie des stats vides
+            if (error.code === 'PGRST116') {
+                return res.status(200).json({
+                    total_wins: 0,
+                    total_losses: 0,
+                    total_pnl_sol: 0,
+                    win_rate: 0, // Ajout du win_rate par défaut
+                    last_scanned_at: null,
+                });
             }
-
-            if (data && data.length > 0) {
-                // On se base sur le champ 'status' qui vient de la DB
-                const wins = data.filter(d => d.status === 'WIN').length;
-                const losses = data.length - wins;
-                const totalPnl = data.reduce((acc, curr) => acc + curr.pnl_sol, 0);
-
-                stats[platform] = {
-                    wins,
-                    losses,
-                    pnl: totalPnl // C'est maintenant le pnl en SOL
-                };
-            } else {
-                stats[platform] = { wins: 0, losses: 0, pnl: 0 };
-            }
+            throw error;
         }
 
-        res.status(200).json(stats);
+        res.status(200).json(data);
         
     } catch (error) {
         console.error(`An unexpected error occurred while fetching user stats for ${userAddress}:`, error.message);
@@ -287,39 +276,57 @@ app.get('/user/:address/exists', async (req, res) => {
     }
 });
 
-// Route pour l'enregistrement ou la connexion d'un utilisateur
+// Route pour connecter un utilisateur
 app.post('/user/connect', async (req, res) => {
-    const { address } = req.body;
-  
-    if (!address) {
-      return res.status(400).json({ error: 'User address is required.' });
+    const { userAddress } = req.body;
+
+    if (!userAddress) {
+        return res.status(400).json({ error: 'userAddress is required' });
     }
-  
+
     try {
-      // Upsert pour éviter les doublons. 
-      // Si l'adresse existe, rien ne se passe. Sinon, elle est insérée.
-      const { data, error } = await supabase
-        .from('users')
-        .upsert({ address: address }, { onConflict: 'address' });
-  
-      if (error) {
-        throw error;
-      }
-  
-      console.log(`User connected successfully: ${address}.`);
-      
-      // Lancer le scan initial pour ce nouvel utilisateur en tâche de fond.
-      // On n'utilise PAS 'await' pour que la réponse soit immédiate.
-      console.log(`Initiating initial scan for address: ${address}`);
-      runWorker(address);
-  
-      res.status(200).json({ message: 'User connected successfully.' });
-  
+        // Étape 1 : Vérifier si l'utilisateur existe déjà
+        const { data: existingUser, error: selectError } = await supabase
+            .from('users')
+            .select('address')
+            .eq('address', userAddress)
+            .single();
+
+        if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = 0 ligne retournée, ce n'est pas une erreur ici
+            throw selectError;
+        }
+
+        // Étape 2 : Décider de la suite
+        if (existingUser) {
+            // L'utilisateur existe déjà, on ne fait rien.
+            console.log(`User ${userAddress} already exists. No scan initiated.`);
+            return res.status(200).json({ message: 'User already exists. Welcome back!' });
+        } else {
+            // L'utilisateur est nouveau, on le crée et on lance le scan.
+            console.log(`New user detected: ${userAddress}. Creating user and initiating scan...`);
+            const { error: insertError } = await supabase
+                .from('users')
+                .insert([{ address: userAddress, last_scanned_at: new Date().toISOString() }]);
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            // On lance le worker en arrière-plan pour ne pas bloquer la réponse.
+            // Le frontend n'a pas besoin d'attendre la fin du scan.
+            runWorker(userAddress).catch(err => {
+                console.error(`[BACKGROUND] Error during initial scan for ${userAddress}:`, err);
+            });
+
+            console.log(`User ${userAddress} created. Initial scan initiated in the background.`);
+            return res.status(201).json({ message: 'User created successfully. Scan initiated.' });
+        }
+
     } catch (error) {
-      console.error('Error in /user/connect:', error);
-      res.status(500).json({ error: 'An internal server error occurred.' });
+        console.error(`Error during user connect for ${userAddress}:`, error.message);
+        res.status(500).json({ error: 'An internal server error occurred.' });
     }
-  });
+});
 
 
 // --- ENDPOINT POUR LE CRON JOB ---
@@ -349,9 +356,9 @@ app.get('/status', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('system_status')
-            .select('trades_updated_at, leaderboard_updated_at')
-            .eq('id', true)
-            .single(); // Il n'y a qu'une seule ligne
+            .select('last_global_update_at') // On sélectionne la nouvelle colonne
+            .eq('id', 1) // On s'assure de requêter par l'ID correct
+            .single();
 
         if (error) throw error;
 

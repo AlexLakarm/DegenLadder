@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LeaderboardItem } from './LeaderboardItem';
 import { LeaderboardEntry, useSystemStatus } from '../../data/leaderboard-data-access';
 
@@ -9,7 +9,7 @@ interface LeaderboardListProps {
 }
 
 export function LeaderboardList({ data, currentUserAddress }: LeaderboardListProps) {
-  const { data: status } = useSystemStatus();
+  const { data: status, isLoading } = useSystemStatus();
 
   const isCurrentUser = (item: LeaderboardEntry) => {
     return item.user_address === currentUserAddress;
@@ -17,10 +17,11 @@ export function LeaderboardList({ data, currentUserAddress }: LeaderboardListPro
 
   return (
     <View style={{ marginVertical: 20 }}>
-      {/* Le titre est dans HomeScreen, nous ajoutons juste le timestamp ici */}
-      {status?.leaderboard_updated_at && (
+      {/* Affiche la date de la dernière mise à jour globale du classement */}
+      {isLoading && <ActivityIndicator size="small" />}
+      {status?.last_global_update_at && (
         <Text style={styles.updatedAtText}>
-          Last update: {new Date(status.leaderboard_updated_at).toLocaleString()}
+          Last update: {new Date(status.last_global_update_at).toLocaleString()}
         </Text>
       )}
 

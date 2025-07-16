@@ -278,6 +278,7 @@ async function runWorker(userAddress = null) {
   
   let usersToProcess = [];
   let lastUpdateTimestamp = null;
+  const globalMode = userAddress === null;
 
   if (userAddress) {
     console.log(`[runWorker] Target mode: Processing single user ${userAddress}`);
@@ -380,6 +381,77 @@ async function runWorker(userAddress = null) {
     } catch (error) {
       console.error(`Error updating last_scanned_at for user ${userAddress}:`, error.message || error);
     }
+  }
+
+  // Après toutes les mises à jour, on rafraîchit la vue matérialisée
+  console.log('\nRefreshing materialized view: degen_rank...');
+  const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
+  if (refreshError) {
+    console.error('Failed to refresh materialized view:', refreshError.message);
+  } else {
+    console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+  }
+
+  try {
+    const successCount = successfulUsers.length;
+    const failedCount = failedUsers.length;
+
+    // Mise à jour du timestamp GLOBAL uniquement si le worker a tourné pour TOUS les utilisateurs
+    if (globalMode) {
+      console.log('\\nUpdating global timestamp...');
+      const { error: updateError } = await supabase
+        .from('system_status')
+        .update({ last_global_update_at: new Date().toISOString() })
+        .eq('id', 1);
+      
+      if (updateError) {
+        console.error('Failed to update global timestamp:', updateError.message);
+      } else {
+        console.log('✅ Global timestamp updated successfully.');
+      }
+    }
+
+    // Après toutes les mises à jour, on rafraîchit la vue matérialisée
+    console.log('\\nRefreshing materialized view: degen_rank...');
+    const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
+    if (refreshError) {
+      console.error('Failed to refresh materialized view:', refreshError.message);
+    } else {
+      console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+    }
+  } catch (error) {
+    console.error('An error occurred during worker execution:', error);
+  } finally {
+    // Mise à jour du timestamp GLOBAL uniquement si le worker a tourné pour TOUS les utilisateurs
+    if (globalMode) {
+      console.log('\nUpdating global timestamp...');
+      const { error: updateError } = await supabase
+        .from('system_status')
+        .update({ last_global_update_at: new Date().toISOString() })
+        .eq('id', 1);
+      
+      if (updateError) {
+        console.error('Failed to update global timestamp:', updateError.message);
+      } else {
+        console.log('✅ Global timestamp updated successfully.');
+      }
+    }
+
+    // Après toutes les mises à jour, on rafraîchit la vue matérialisée
+    console.log('\nRefreshing materialized view: degen_rank...');
+    const { error: refreshError } = await supabase.rpc('refresh_degen_rank');
+    if (refreshError) {
+      console.error('Failed to refresh materialized view:', refreshError.message);
+    } else {
+      console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+    }
+
+    console.log('\n[runWorker] Execution summary:', {
+      succeeded: successfulUsers.length,
+      failed: failedUsers.length,
+      total: successfulUsers.length + failedUsers.length,
+    });
+    console.log('--- Fin du Worker ---');
   }
 }
 

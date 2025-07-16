@@ -39,6 +39,7 @@ async function main() {
     
     console.log('-----------------------------------------------------------------');
     console.log('\n✅ Le worker a terminé son exécution.');
+    console.log('La vue matérialisée a été rafraîchie. Le nouvel utilisateur devrait maintenant apparaître dans le classement.');
 
   } catch (error) {
     console.error('\n❌ Une erreur est survenue pendant la simulation:', error.message);

@@ -38,6 +38,7 @@ export default function DetailsScreen() {
   const userAddress = addressFromRoute || selectedAccount?.publicKey.toBase58();
   const isMyOwnProfile = userAddress === selectedAccount?.publicKey.toBase58();
 
+  // On conserve ce hook pour d'éventuelles informations globales futures, mais il n'est plus utilisé pour la date
   const { data: systemStatus, isLoading: isLoadingStatus } = useSystemStatus();
 
   const { data: stats, isLoading, isError } = useQuery({
@@ -52,25 +53,22 @@ export default function DetailsScreen() {
     enabled: !!userAddress,
   });
 
-  // Calculer les statistiques globales
-  const globalStats = React.useMemo(() => {
-    if (!stats) return null;
+  // Logique pour déterminer la date de mise à jour la plus pertinente
+  const getDisplayDate = () => {
+    const userScanDate = stats?.last_scanned_at ? new Date(stats.last_scanned_at) : null;
+    const globalUpdateDate = systemStatus?.last_global_update_at ? new Date(systemStatus.last_global_update_at) : null;
 
-    let totalWins = 0;
-    let totalLosses = 0;
-    let totalPnl = 0;
-
-    for (const platform in stats) {
-      totalWins += stats[platform].wins;
-      totalLosses += stats[platform].losses;
-      totalPnl += stats[platform].pnl;
+    if (!userScanDate && !globalUpdateDate) {
+      return "Last update: N/A";
     }
 
-    const totalTrades = totalWins + totalLosses;
-    const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+    // On prend la date la plus récente des deux
+    const mostRecentDate = userScanDate && globalUpdateDate 
+      ? (userScanDate > globalUpdateDate ? userScanDate : globalUpdateDate)
+      : userScanDate || globalUpdateDate;
 
-    return { totalWins, totalLosses, totalPnl, winRate };
-  }, [stats]);
+    return `Last update: ${mostRecentDate!.toLocaleString()}`;
+  };
 
 
   const styles = StyleSheet.create({
@@ -109,13 +107,11 @@ export default function DetailsScreen() {
     <ScrollView style={styles.container}>
       <Title style={[styles.title, { color: theme.colors.onSurface }]}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
 
-      {isLoadingStatus ? (
+      {(isLoading || isLoadingStatus) ? (
         <ActivityIndicator style={{ marginBottom: 8 }} />
-      ) : systemStatus?.trades_updated_at ? (
-        <Text style={styles.date}>
-            Last trades update: {new Date(systemStatus.trades_updated_at).toLocaleString()}
-        </Text>
-      ) : null}
+      ) : (
+        <Text style={styles.date}>{getDisplayDate()}</Text>
+      )}
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>
@@ -123,35 +119,37 @@ export default function DetailsScreen() {
          </View>
       )}
 
-      {userAddress && isLoading && <ActivityIndicator style={{marginTop: 20}} size="large" />}
       {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
 
-      {globalStats && (
+      {stats && (
         <AnimatedBorderCard style={styles.card}>
             <Title style={styles.cardTitle}>Global Stats</Title>
             <List.Item
               title="Total PNL (SOL)"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: globalStats.totalPnl >= 0 ? 'green' : 'red'}}>{globalStats.totalPnl.toFixed(4)} SOL</Text>}
+              right={() => <Text variant="titleMedium" style={{color: (stats.total_pnl_sol ?? 0) >= 0 ? 'green' : 'red'}}>{(stats.total_pnl_sol ?? 0).toFixed(4)} SOL</Text>}
             />
             <List.Item
               title="Win Rate"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium">{globalStats.winRate.toFixed(2)}%</Text>}
+              right={() => <Text variant="titleMedium">{(stats.win_rate ?? 0).toFixed(2)}%</Text>}
             />
             <List.Item
               title="Total Wins"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{globalStats.totalWins}</Text>}
+              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{stats.total_wins ?? 0}</Text>}
             />
             <List.Item
               title="Total Losses"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{globalStats.totalLosses}</Text>}
+              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{stats.total_losses ?? 0}</Text>}
             />
         </AnimatedBorderCard>
       )}
 
+      {/* La section des stats par plateforme n'est plus pertinente car on a les stats globales */}
+      {/* Vous pouvez la supprimer ou la conserver si vous prévoyez de la réutiliser */}
+      {/* 
       {stats && Object.keys(stats).map((platform) => (
         <Card key={platform} style={styles.card} mode="contained">
           <Card.Title titleStyle={{textTransform: 'capitalize'}} title={`${platform}.fun`} />
@@ -172,6 +170,7 @@ export default function DetailsScreen() {
           </Card.Content>
         </Card>
       ))}
+      */}
 
       <Card style={styles.card} mode="contained">
         <Card.Title title="Recent Activity" />

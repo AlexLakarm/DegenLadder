@@ -48,7 +48,7 @@ Le projet est un monorepo structuré comme suit :
 La base de données contient 3 tables principales, une table de statut et une vue matérialisée.
 
 ### Table `users`
-Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker.
+Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker. Chaque utilisateur a son propre timestamp de scan.
 **Logique**: Cette table est peuplée via l'endpoint `/user/connect` à chaque fois qu'un nouvel utilisateur se connecte.
 
 ```sql
@@ -57,6 +57,7 @@ CREATE TABLE users (
   address text,
   username text,
   created_at timestamp,
+  last_scanned_at timestamp with time zone, -- Mis à jour après chaque scan de cet utilisateur
   PRIMARY KEY (address)
 );
 ```
@@ -85,55 +86,49 @@ CREATE TABLE trades_pump (
 La table `trades_bonk` est identique. 
 
 ### Table `system_status`
-Cette table centralise les timestamps des processus automatisés clés pour un monitoring simplifié. Elle ne contient qu'une seule ligne.
+Cette table ne contient qu'une seule ligne et un seul timestamp, qui sert de référence pour la dernière mise à jour globale de **tous** les utilisateurs.
 
 ```sql
 CREATE TABLE system_status (
-  id bool PRIMARY KEY, -- Toujours 'true'
-  trades_updated_at timestamp with time zone,
-  leaderboard_updated_at timestamp with time zone
+  id int, -- Toujours 1
+  last_global_update_at timestamp with time zone
 );
 ```
-- `trades_updated_at`: Mis à jour à la fin de chaque exécution réussie du scan global des trades.
-- `leaderboard_updated_at`: Mis à jour à la fin de chaque rafraîchissement réussi de la vue `degen_rank` par le cron Supabase.
+- `last_global_update_at`: Mis à jour uniquement à la fin d'un scan global réussi de tous les trades.
 
 ### Vue Matérialisée `degen_rank`
 Pour garantir des temps de chargement rapides, le classement principal est une **vue matérialisée**. Elle agrège les scores, le PNL et le nombre de trades pour chaque utilisateur.
-**Automatisation**: Elle est rafraîchie automatiquement toutes les 10 minutes. (Voir la section "Automatisation et Monitoring").
+**Logique de jointure**: Utilise un `LEFT JOIN` depuis la table `users` pour s'assurer que **tous les utilisateurs** sont présents dans le classement, même ceux avec 0 trade.
+**Automatisation**: Elle est rafraîchie par le `worker.js` à la fin de **chaque** exécution (globale ou ciblée).
 
 ## 6. Algorithme du "Degen Score" V1
 Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la colonne `degen_score`.
 - **Trade Gagnant**: +10 points
 - **Trade Perdant**: -10 points
-- **Bonus PnL** (uniquement si PnL > 0): `50 * log(1 + pnl_en_sol)`
+- **Bonus PnL** (uniquement si PNL > 0): `50 * log(1 + pnl_en_sol)`
 
-## 7. Automatisation et Stratégies de Rafraîchissement
+## 7. Stratégies de Données et de Rafraîchissement
 
-Le projet utilise trois mécanismes distincts pour maintenir les données à jour.
+Le système utilise deux processus distincts et complémentaires pour maintenir les données à jour.
 
-### 7.1. Scan Initial des Nouveaux Utilisateurs (En temps réel)
-- **Objectif**: Fournir des données immédiates à un nouvel utilisateur.
-- **Déclencheur**: Un utilisateur se connecte à l'application pour la première fois.
-- **Mécanisme**:
-    1. Le frontend appelle l'endpoint `POST /user/connect`.
-    2. Le backend lance le `worker.js` en mode ciblé (scan complet) pour cet utilisateur.
+### 7.1. Processus 1 : Connexion d'un Nouvel Utilisateur (Scan Ciblé en Temps Réel)
+- **Objectif**: Fournir des données initiales et une place dans le classement immédiatement après la connexion.
+- **Déclencheur**: Un utilisateur se connecte pour la première fois, déclenchant un appel à l'endpoint `POST /user/connect`.
+- **Mécanisme Détaillé**:
+    1.  L'adresse de l'utilisateur est ajoutée (ou confirmée) dans la table `users`.
+    2.  Le `worker.js` est lancé en mode **ciblé** : il scanne l'historique de transactions **complet** de cet utilisateur uniquement.
+    3.  Une fois le scan terminé, le timestamp personnel `last_scanned_at` de l'utilisateur est mis à jour dans la table `users`.
+    4.  Enfin, la vue matérialisée `degen_rank` est rafraîchie pour que le nouvel utilisateur y apparaisse.
+- **Timestamp Global**: Le `last_global_update_at` de la table `system_status` **n'est pas** modifié durant ce processus.
 
-### 7.2. Mise à Jour Globale des Trades (Solution Actuelle : Manuelle)
-- **Objectif**: Mettre à jour les données de trades pour **tous** les utilisateurs enregistrés de manière fiable.
-- **Problématique**: Le cron Vercel a un timeout de 60 secondes, ce qui est trop court pour le worker qui doit respecter les limites de l'API Helius.
-- **Solution de Contournement Actuelle**: Lancer le worker manuellement.
-- **Mécanisme**:
-    1. Un opérateur lance le script `node backend/scripts/runManualWorker.js` depuis sa machine.
-    2. Le script appelle le `worker.js` en mode global (scan incrémental).
-    3. Le worker s'exécute sans contrainte de temps et met à jour le timestamp `trades_updated_at` dans la table `system_status` à la fin.
-
-### 7.3. Rafraîchissement du Leaderboard (Agrégation rapide)
-- **Objectif**: Mettre à jour la vue matérialisée `degen_rank`.
-- **Déclencheur**: Un Cron Job Supabase (`pg_cron`).
-- **Fréquence**: Toutes les 10 minutes.
-- **Mécanisme**:
-    1. `pg_cron` exécute la fonction SQL `refresh_degen_rank()`.
-    2. La fonction met à jour le timestamp `leaderboard_updated_at` dans `system_status`.
+### 7.2. Processus 2 : Mise à Jour Quotidienne (Scan Global Manuel)
+- **Objectif**: Mettre à jour les données de trade pour **tous** les utilisateurs enregistrés et actualiser la date de référence globale.
+- **Déclencheur**: Lancement manuel du script dédié `runManualWorker.js`.
+- **Mécanisme Détaillé**:
+    1.  Un opérateur lance le script `node backend/scripts/runManualWorker.js`.
+    2.  Le `worker.js` est lancé en mode **global** : il scanne les transactions **récentes** de tous les utilisateurs présents dans la table `users`.
+    3.  Une fois le scan de **tous** les utilisateurs terminé avec succès, le timestamp `last_global_update_at` est mis à jour dans la table `system_status`.
+    4.  Enfin, la vue matérialisée `degen_rank` est rafraîchie pour refléter les nouvelles données de tout le classement.
 
 ## 8. Démarrage du Projet
 
