@@ -250,7 +250,7 @@ export function DetailsScreen() {
                      right={() => <Text style={{fontSize: 16, color: '#ef4444'}}>{platformStats[selectedPlatform]?.losses}</Text>}
                    />
                  </Card.Content>
-               </Card>
+              </Card>
             </View>
           )}
 
@@ -287,6 +287,12 @@ export function DetailsScreen() {
             </View>
           )}
 
+          {/* Disclaimer Section */}
+          <View style={styles.disclaimerContainer}>
+            <Text style={styles.disclaimerText}>
+              Disclaimer: The information provided in this application is for informational purposes only and does not constitute financial advice. All data is sourced from the public Solana blockchain. Trading cryptocurrencies involves significant risk.
+            </Text>
+          </View>
         </>
       ) : (
          <View style={{alignItems: 'center', marginTop: 40}}>
@@ -306,6 +312,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 40, // Add padding to the bottom
   },
   headerContainer: {
     flexDirection: 'row',
@@ -375,5 +382,21 @@ const styles = StyleSheet.create({
   },
   listItemTitle: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  disclaimerContainer: {
+    marginTop: 32,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  disclaimerText: {
+    fontSize: 12,
+    color: '#a1a1aa', // zinc-400
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

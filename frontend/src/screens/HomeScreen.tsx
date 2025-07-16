@@ -1,27 +1,27 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking, RefreshControl, Platform } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking, RefreshControl } from "react-native";
 import { Text as PaperText, useTheme, Button, SegmentedButtons } from "react-native-paper";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import { getGlobalLeaderboard } from "../data/platforms/common-platform-access";
-import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeaderboardFeature";
 import { LeaderboardList } from "../components/leaderboard/LeaderboardList";
 import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
-import { HomeScreenNavigationProp } from "../navigators/HomeNavigator";
+import { HomeNavigationProp } from "../navigators/HomeNavigator";
 import AppTitle from "../components/gyro-title/AppTitle";
 import { GlowingCard } from "../components/card/GlowingCard";
 import { SearchUserFeature } from "../components/search/SearchUserFeature";
 import { ellipsify } from "../utils/ellipsify";
+import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeaderboardFeature";
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
 
 export function HomeScreen() {
   const theme = useTheme();
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const navigation = useNavigation<HomeNavigationProp>();
   const [sortBy, setSortBy] = useState('degen_score');
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const { selectedAccount } = useAuthorization();
@@ -156,6 +156,21 @@ export function HomeScreen() {
     leaderboardContainer: {
       // Le style du conteneur du classement
     },
+    disclaimerContainer: {
+      marginTop: 32,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    disclaimerText: {
+      fontSize: 12,
+      color: '#a1a1aa', // zinc-400
+      textAlign: 'center',
+      lineHeight: 18,
+    },
   });
 
   return (
@@ -248,43 +263,23 @@ export function HomeScreen() {
             ]}
           />
 
-          {/* Liste du classement global (Top 10) - Toujours visible */}
-          <GlobalLeaderboardFeature data={leaderboardData?.slice(0, 10) ?? []} />
+          {/* Top 10 */}
+          <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} />
 
-          {/* Section du résultat de recherche - Conditionnelle */}
-          {searchQuery && (
-            <View style={{marginTop: 24}}>
-              <PaperText variant="headlineSmall" style={styles.sectionTitle}>
-                Search Result
-              </PaperText>
-              {searchResultData.length > 0 ? (
-                <LeaderboardList data={searchResultData} currentUserAddress={searchQuery} />
-              ) : (
-                <Text style={{textAlign: 'center', marginVertical: 20}}>
-                  User found, but not ranked yet.
-                </Text>
-              )}
-            </View>
+          {/* My Position (autour de l'utilisateur connecté) */}
+          {userAddress && currentUserData && (
+            <>
+              <PaperText variant="headlineSmall" style={[styles.sectionTitle, { marginTop: 32 }]}>My Position</PaperText>
+              <LeaderboardList data={leaderboardData.slice(Math.max(0, leaderboardData.findIndex(entry => entry.user_address === userAddress) - 3), leaderboardData.findIndex(entry => entry.user_address === userAddress) + 4)} currentUserAddress={userAddress} />
+            </>
           )}
 
-          {/* Section "Your Position" - Conditionnelle et cachée si une recherche est active */}
-          {userAddress && currentUserData && !searchQuery && (
-            <View>
-              {/* Titre Your Position */}
-              <PaperText variant="headlineSmall" style={styles.sectionTitle}>
-                Your Position
-              </PaperText>
-
-              {/* Section de la position de l'utilisateur */}
-              {yourPositionData.length > 0 ? (
-                <LeaderboardList data={yourPositionData} currentUserAddress={userAddress} />
-              ) : (
-                <Text style={{textAlign: 'center', marginVertical: 20}}>
-                  Your rank will appear here once you start trading.
-                </Text>
-              )}
-            </View>
-          )}
+          {/* Disclaimer Section */}
+          <View style={styles.disclaimerContainer}>
+            <Text style={styles.disclaimerText}>
+              Disclaimer: The information provided in this application is for informational purposes only and does not constitute financial advice. All data is sourced from the public Solana blockchain. Trading cryptocurrencies involves significant risk.
+            </Text>
+          </View>
         </>
       )}
     </ScrollView>

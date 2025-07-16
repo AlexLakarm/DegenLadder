@@ -1,4 +1,4 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createBottomTabNavigator, BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useTheme } from "react-native-paper";
 import { DetailsScreen, HomeScreen } from "../screens";
 import { TopBar } from "../components/top-bar/top-bar-feature";
@@ -9,6 +9,8 @@ export type HomeStackParamList = {
   Home: undefined;
   Details: { userAddress: string };
 };
+
+export type HomeNavigationProp = BottomTabNavigationProp<HomeStackParamList>;
 
 const Tab = createBottomTabNavigator<HomeStackParamList>();
 
