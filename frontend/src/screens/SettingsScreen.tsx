@@ -4,12 +4,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   useColorScheme,
+  Alert,
 } from "react-native";
 import React from "react";
 import { useAuthorization } from "../utils/useAuthorization";
 import { useMobileWallet } from '../utils/useMobileWallet';
 import { Appbar, Button, useTheme } from "react-native-paper";
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
 
 export function SettingsScreen() {
   const theme = useTheme(); // Utiliser le hook pour le thème dynamique
@@ -18,8 +20,43 @@ export function SettingsScreen() {
   const styles = getStyles(theme);
   const navigation = useNavigation();
 
+  const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+
   const handleDisconnect = async () => {
     await disconnect();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!selectedAccount) return;
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account and all related data? This action is irreversible.\n\nIf you reconnect your wallet, your public data will be fetched and analyzed again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const userAddress = selectedAccount.publicKey.toBase58();
+              const response = await fetch(`${API_ENDPOINT}/user/${userAddress}`, {
+                method: 'DELETE',
+              });
+              const result = await response.json();
+              if (result.success) {
+                Alert.alert("Account Deleted", "Your account and all related data have been deleted. If you reconnect your wallet, your public data will be fetched and analyzed again.");
+                await disconnect();
+                navigation.goBack();
+              } else {
+                Alert.alert("Error", result.error || "Failed to delete account.");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while deleting your account.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -56,6 +93,19 @@ export function SettingsScreen() {
         >
           Disconnect
         </Button>
+
+        <Button
+          mode="outlined"
+          onPress={handleDeleteAccount}
+          style={styles.deleteButton}
+          labelStyle={styles.deleteButtonLabel}
+          disabled={!selectedAccount}
+        >
+          Delete my account
+        </Button>
+        <Text style={styles.deleteWarning}>
+          If you reconnect your wallet, your public data will be fetched and analyzed again.
+        </Text>
       </View>
     </>
   );
@@ -101,5 +151,21 @@ const getStyles = (theme: any) =>
     buttonLabel: {
       color: "white",
       fontWeight: "bold",
+    },
+    deleteButton: {
+      marginTop: 20,
+      borderColor: theme.colors.error,
+      borderWidth: 1,
+      borderRadius: 8,
+    },
+    deleteButtonLabel: {
+      color: theme.colors.error,
+      fontWeight: "bold",
+    },
+    deleteWarning: {
+      marginTop: 12,
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: 'center',
     },
   });
