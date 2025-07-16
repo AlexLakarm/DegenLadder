@@ -39,9 +39,9 @@ export function SettingsScreen() {
       </Appbar.Header>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Compte</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('PrivacyPolicy')}>
-            <Text style={styles.itemText}>Politique de Confidentialité</Text>
+            <Text style={styles.itemText}>Privacy Policy</Text>
             <Text style={styles.itemArrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -53,7 +53,7 @@ export function SettingsScreen() {
           labelStyle={styles.buttonLabel}
           disabled={!selectedAccount}
         >
-          Déconnexion
+          Disconnect
         </Button>
       </View>
     </>

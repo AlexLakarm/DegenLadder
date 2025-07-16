@@ -9,53 +9,53 @@ export function PrivacyPolicyScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Politique de Confidentialité</Text>
-        <Text style={styles.lastUpdated}>Dernière mise à jour : 28 Juillet 2024</Text>
+        <Text style={styles.title}>Privacy Policy</Text>
+        <Text style={styles.lastUpdated}>Last updated: July 28, 2024</Text>
 
         <Text style={styles.heading}>1. Introduction</Text>
         <Text style={styles.paragraph}>
-          Bienvenue sur DegenRank. Cette politique de confidentialité a pour but de vous informer sur la manière dont nous traitons vos informations lorsque vous utilisez notre application. En utilisant DegenRank, vous acceptez les pratiques décrites dans ce document.
+          Welcome to DegenRank. This Privacy Policy is intended to inform you about how we handle your information when you use our application. By using DegenRank, you agree to the practices described in this document.
         </Text>
 
-        <Text style={styles.heading}>2. Les Données que Nous Utilisons</Text>
+        <Text style={styles.heading}>2. Data We Use</Text>
         <Text style={styles.paragraph}>
-          DegenRank fonctionne en utilisant exclusivement des données publiques et accessibles sur la blockchain Solana. Lorsque vous connectez votre portefeuille à notre application, la seule information que nous enregistrons est votre **adresse de portefeuille publique**.
+          DegenRank operates by exclusively using public and accessible data from the Solana blockchain. When you connect your wallet to our application, the only piece of information we record is your <Text style={{fontWeight: 'bold'}}>public wallet address</Text>.
         </Text>
         <Text style={styles.paragraph}>
-          Nous n'avons accès, ni ne stockons, vos clés privées, vos phrases de récupération, ou toute autre information personnelle identifiable (telle que votre nom ou votre email).
+          We do not have access to, nor do we store, your private keys, seed phrases, or any other personally identifiable information (such as your name or email).
         </Text>
 
-        <Text style={styles.heading}>3. Comment Nous Utilisons les Données</Text>
+        <Text style={styles.heading}>3. How We Use Data</Text>
         <Text style={styles.paragraph}>
-          Votre adresse publique est utilisée pour interroger la blockchain Solana afin de récupérer votre historique de transactions. Ces informations sont ensuite traitées par notre service pour :
+          Your public address is used to query the Solana blockchain to retrieve your transaction history. This information is then processed by our service to:
         </Text>
         <View style={styles.list}>
-          <Text style={styles.listItem}>• Calculer et afficher vos statistiques de trading (PNL, Win Rate, Degen Score).</Text>
-          <Text style={styles.listItem}>• Présenter votre historique de trades de manière lisible.</Text>
-          <Text style={styles.listItem}>• Vous inclure dans le classement (leaderboard) de l'application.</Text>
+          <Text style={styles.listItem}>• Calculate and display your trading statistics (PNL, Win Rate, Degen Score).</Text>
+          <Text style={styles.listItem}>• Present your trade history in a readable format.</Text>
+          <Text style={styles.listItem}>• Include you in the application's leaderboard.</Text>
         </View>
         <Text style={styles.paragraph}>
-          Les résultats de ces calculs sont associés à votre adresse et stockés dans notre base de données sécurisée pour vous permettre un accès rapide à vos statistiques lors de vos prochaines visites.
+          The results of these calculations are associated with your address and stored in our secure database to provide you with quick access to your statistics on future visits.
         </Text>
 
-        <Text style={styles.heading}>4. Partage des Données</Text>
+        <Text style={styles.heading}>4. Data Sharing</Text>
         <Text style={styles.paragraph}>
-          Nous ne vendons, n'échangeons, ni ne transférons vos informations à des tiers. Les données affichées dans l'application (comme le leaderboard) sont basées sur les mêmes données publiques de la blockchain accessibles à tous.
+          We do not sell, trade, or otherwise transfer your information to third parties. The data displayed in the application (such as the leaderboard) is based on the same public blockchain data accessible to everyone.
         </Text>
         
-        <Text style={styles.heading}>5. Sécurité</Text>
+        <Text style={styles.heading}>5. Security</Text>
         <Text style={styles.paragraph}>
-            Nous mettons en œuvre des mesures de sécurité pour protéger les informations que nous stockons. Cependant, aucune méthode de transmission sur Internet ou de stockage électronique n'est sûre à 100%.
+            We implement security measures to protect the information we store. However, no method of transmission over the Internet or electronic storage is 100% secure.
         </Text>
 
-        <Text style={styles.heading}>6. Modifications de cette Politique</Text>
+        <Text style={styles.heading}>6. Changes to This Policy</Text>
         <Text style={styles.paragraph}>
-          Nous nous réservons le droit de modifier cette politique de confidentialité à tout moment. Les modifications seront publiées sur cette page avec une date de mise à jour.
+          We reserve the right to modify this privacy policy at any time. Changes will be posted on this page with an updated date.
         </Text>
 
-        <Text style={styles.heading}>7. Nous Contacter</Text>
+        <Text style={styles.heading}>7. Contact Us</Text>
         <Text style={styles.paragraph}>
-          Pour toute question concernant cette politique de confidentialité, veuillez nous contacter à [votre adresse email de contact].
+          For any questions regarding this privacy policy, please contact us at [your contact email address].
         </Text>
       </View>
     </ScrollView>

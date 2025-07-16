@@ -65,7 +65,7 @@ const AppStack = () => {
       <Stack.Screen 
         name="PrivacyPolicy" 
         component={PrivacyPolicyScreen}
-        options={{ title: 'Politique de Confidentialité' }} 
+        options={{ title: 'Privacy Policy' }} 
       />
       {/** 🔥 Your screens go here */}
     </Stack.Navigator>
