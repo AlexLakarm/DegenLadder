@@ -1,44 +1,60 @@
 import React from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
-import { Card, List, Text, Title, useTheme } from "react-native-paper";
-import { useQuery } from "@tanstack/react-query";
-import { useRoute } from '@react-navigation/native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, Alert } from "react-native";
+import { Card, List, IconButton, Text, Title, useTheme } from "react-native-paper";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthorization } from "../utils/useAuthorization";
-import Constants from "expo-constants";
-import { DetailsScreenRouteProp } from '../navigators/HomeNavigator';
 import { useSystemStatus } from "../data/leaderboard-data-access";
+import Constants from "expo-constants";
 import { AnimatedBorderCard } from "../components/card/AnimatedBorderCard";
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
+const platformDisplayNames: { [key: string]: string } = {
+  pump: 'pump.fun',
+  bonk: 'letsbonk.fun',
+};
+
 async function fetchUserStats(userAddress: string) {
-  if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
   const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/stats`);
   if (!response.ok) {
     throw new Error('Network response was not ok');
   }
-  return response.json();
+  const data = await response.json();
+  return data;
 }
 
 async function fetchUserHistory(userAddress: string) {
-  if (!API_ENDPOINT) throw new Error("API endpoint is not configured in app.json");
-  const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/history`);
+    const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/history`);
+    if (!response.ok) {
+        throw new Error('Network response was not ok');
+    }
+    const data = await response.json();
+    return data;
+}
+
+// Nouvelle fonction pour appeler le refresh
+async function refreshUser(userAddress: string) {
+  const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/refresh`, {
+    method: 'POST',
+  });
   if (!response.ok) {
-    throw new Error('Network response was not ok for history');
+    throw new Error('Failed to initiate refresh');
   }
   return response.json();
 }
 
 export default function DetailsScreen() {
   const theme = useTheme();
-  const route = useRoute<DetailsScreenRouteProp>();
+  const navigation = useNavigation();
+  const route = useRoute<any>();
   const { selectedAccount } = useAuthorization();
-
   const addressFromRoute = route.params?.userAddress;
   const userAddress = addressFromRoute || selectedAccount?.publicKey.toBase58();
   const isMyOwnProfile = userAddress === selectedAccount?.publicKey.toBase58();
 
-  // On conserve ce hook pour d'éventuelles informations globales futures, mais il n'est plus utilisé pour la date
+  const queryClient = useQueryClient();
+
   const { data: systemStatus, isLoading: isLoadingStatus } = useSystemStatus();
 
   const { data: stats, isLoading, isError } = useQuery({
@@ -53,154 +69,192 @@ export default function DetailsScreen() {
     enabled: !!userAddress,
   });
 
-  // Logique pour déterminer la date de mise à jour la plus pertinente
-  const getDisplayDate = () => {
-    const userScanDate = stats?.last_scanned_at ? new Date(stats.last_scanned_at) : null;
-    const globalUpdateDate = systemStatus?.last_global_update_at ? new Date(systemStatus.last_global_update_at) : null;
-
-    if (!userScanDate && !globalUpdateDate) {
-      return "Last update: N/A";
-    }
-
-    // On prend la date la plus récente des deux
-    const mostRecentDate = userScanDate && globalUpdateDate 
-      ? (userScanDate > globalUpdateDate ? userScanDate : globalUpdateDate)
-      : userScanDate || globalUpdateDate;
-
-    return `Last update: ${mostRecentDate!.toLocaleString()}`;
-  };
-
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 16,
+  // Mutation pour le rafraîchissement manuel
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshUser(userAddress!),
+    onSuccess: () => {
+      Alert.alert("Refresh Started", "Your stats will be updated in a moment.");
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['userStats', userAddress] });
+        queryClient.invalidateQueries({ queryKey: ['userHistory', userAddress] });
+      }, 10000); // On attend 10s pour laisser le temps au worker
     },
-    title: {
-      fontSize: 24,
-      fontWeight: "bold",
-      marginBottom: 24,
-      textAlign: "center",
-    },
-    card: {
-      marginBottom: 24,
-    },
-    cardTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 8,
-    },
-    listItemTitle: {
-      color: theme.colors.onSurface,
-    },
-    date: {
-      textAlign: 'center',
-      marginBottom: 16,
-      color: theme.colors.onSurface,
-      opacity: 0.7
+    onError: (error) => {
+      Alert.alert("Refresh Failed", "Could not start the refresh process. Please try again later.");
+      console.error("Refresh failed", error);
     }
   });
 
+  // Logique pour déterminer la date de mise à jour la plus pertinente
+  const getDisplayDate = () => {
+    const userScanDate = stats?.globalStats?.last_scanned_at ? new Date(stats.globalStats.last_scanned_at) : null;
+    const globalUpdateDate = systemStatus?.last_global_update_at ? new Date(systemStatus.last_global_update_at) : null;
+
+    if (!userScanDate && !globalUpdateDate) {
+      return 'Last update: Not available';
+    }
+
+    const displayDate = userScanDate && globalUpdateDate 
+      ? (userScanDate > globalUpdateDate ? userScanDate : globalUpdateDate) 
+      : userScanDate || globalUpdateDate;
+
+    return `Last update: ${displayDate!.toLocaleString()}`;
+  };
+
   return (
     <ScrollView style={styles.container}>
-      <Title style={[styles.title, { color: theme.colors.onSurface }]}>{isMyOwnProfile ? 'Your degenStats' : 'User Stats'}</Title>
+      <View style={styles.titleContainer}>
+        <Title style={[styles.title, { color: theme.colors.onSurface }]}>
+          {isMyOwnProfile ? 'Your degenStats' : 'User Stats'}
+        </Title>
+        {userAddress && (
+          refreshMutation.isPending ? (
+            <ActivityIndicator style={styles.refreshIcon} />
+          ) : (
+            <IconButton
+              icon="refresh"
+              size={24}
+              style={styles.refreshIcon}
+              onPress={() => refreshMutation.mutate()}
+            />
+          )
+        )}
+      </View>
 
-      {(isLoading || isLoadingStatus) ? (
+      {isLoading ? (
         <ActivityIndicator style={{ marginBottom: 8 }} />
-      ) : (
+      ) : stats?.globalStats?.last_scanned_at ? (
         <Text style={styles.date}>{getDisplayDate()}</Text>
+      ) : (
+        <Text style={styles.date}>User not scanned yet.</Text>
       )}
 
       {!userAddress && (
          <View style={{alignItems: 'center', marginTop: 40}}>
-            <Text>Connect your wallet to see your degenStats.</Text>
+           <Text style={{fontSize: 18, marginBottom: 20, color: theme.colors.onSurface}}>Connect your wallet to see your stats</Text>
          </View>
       )}
 
-      {userAddress && isError && <Text style={{textAlign: 'center', marginTop: 20, color: 'red'}}>Error fetching your stats.</Text>}
+      {userAddress && isError && (
+        <Text style={{color: 'red', textAlign: 'center'}}>Error fetching user stats.</Text>
+      )}
 
-      {stats && (
+      {stats?.globalStats && (
         <AnimatedBorderCard style={styles.card}>
             <Title style={styles.cardTitle}>Global Stats</Title>
             <List.Item
               title="Total PNL (SOL)"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium" style={{color: (stats.total_pnl_sol ?? 0) >= 0 ? 'green' : 'red'}}>{(stats.total_pnl_sol ?? 0).toFixed(4)} SOL</Text>}
+              right={() => <Text variant="titleMedium" style={{color: (stats.globalStats.total_pnl_sol ?? 0) >= 0 ? 'green' : 'red'}}>{(stats.globalStats.total_pnl_sol ?? 0).toFixed(4)} SOL</Text>}
             />
             <List.Item
               title="Win Rate"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="titleMedium">{(stats.win_rate ?? 0).toFixed(2)}%</Text>}
+              right={() => <Text variant="titleMedium">{(stats.globalStats.win_rate ?? 0).toFixed(2)}%</Text>}
+            />
+             <List.Item
+              title="Total Trades"
+              titleStyle={styles.listItemTitle}
+              right={() => <Text variant="titleMedium">{stats.globalStats.total_trades ?? 0}</Text>}
             />
             <List.Item
-              title="Total Wins"
+              title="Wins"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{stats.total_wins ?? 0}</Text>}
+              right={() => <Text variant="titleMedium" style={{color: 'green'}}>{stats.globalStats.total_wins ?? 0}</Text>}
             />
             <List.Item
-              title="Total Losses"
+              title="Losses"
               titleStyle={styles.listItemTitle}
-              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{stats.total_losses ?? 0}</Text>}
+              right={() => <Text variant="titleMedium" style={{color: 'red'}}>{stats.globalStats.total_losses ?? 0}</Text>}
             />
         </AnimatedBorderCard>
       )}
 
-      {/* La section des stats par plateforme n'est plus pertinente car on a les stats globales */}
-      {/* Vous pouvez la supprimer ou la conserver si vous prévoyez de la réutiliser */}
-      {/* 
-      {stats && Object.keys(stats).map((platform) => (
-        <Card key={platform} style={styles.card} mode="contained">
-          <Card.Title titleStyle={{textTransform: 'capitalize'}} title={`${platform}.fun`} />
+      {stats?.platformStats && Object.keys(stats.platformStats).map((platform) => (
+        <Card key={platform} style={styles.card} mode="elevated">
+          <Card.Title 
+            titleStyle={[styles.cardTitle, {textTransform: 'none'}]} 
+            title={platformDisplayNames[platform] || `${platform}.fun`} 
+          />
           <Card.Content>
             <List.Item
               title="PNL (SOL)"
-              description="Profit and Loss in SOL"
-              right={() => <Text variant="titleMedium" style={{color: stats[platform].pnl >= 0 ? 'green' : 'red'}}>{stats[platform].pnl.toFixed(4)} SOL</Text>}
+              titleStyle={styles.listItemTitle}
+              right={() => <Text variant="titleMedium" style={{color: stats.platformStats[platform].pnl >= 0 ? 'green' : 'red'}}>{stats.platformStats[platform].pnl.toFixed(4)} SOL</Text>}
             />
-             <List.Item
+            <List.Item
               title="Wins"
-              right={() => <Text variant="bodyLarge" style={{color: 'green'}}>{stats[platform].wins}</Text>}
+              titleStyle={styles.listItemTitle}
+              right={() => <Text variant="titleMedium" style={{color: 'green'}}>{stats.platformStats[platform].wins}</Text>}
             />
-             <List.Item
+            <List.Item
               title="Losses"
-              right={() => <Text variant="bodyLarge" style={{color: 'red'}}>{stats[platform].losses}</Text>}
+              titleStyle={styles.listItemTitle}
+              right={() => <Text variant="titleMedium" style={{color: 'red'}}>{stats.platformStats[platform].losses}</Text>}
             />
           </Card.Content>
         </Card>
       ))}
-      */}
-
-      <Card style={styles.card} mode="contained">
-        <Card.Title title="Recent Activity" />
-        <Card.Content>
-          {userAddress && isLoadingHistory && <ActivityIndicator />}
-          {userAddress && isErrorHistory && <Text style={{textAlign: 'center', color: 'red'}}>Error fetching history.</Text>}
-          
-          {history && history.length > 0 ? (
-            history.map((item: any, index: number) => (
-              <List.Item
-                key={index}
-                title={`${item.is_win ? 'Win' : 'Loss'} on $${item.token_name.split('').slice(0, 6).join('')}...`}
-                description={`on ${item.platform}.fun - ${new Date(item.last_sell_at).toLocaleDateString()}`}
-                right={() => (
-                  <Text
-                    variant="bodyLarge"
-                    style={{
-                      color: item.is_win ? "green" : "red",
-                    }}
-                  >
-                    {item.pnl_sol >= 0 ? '+' : ''}{item.pnl_sol.toFixed(4)} SOL
-                  </Text>
-                )}
-              />
-            ))
-          ) : (
-            userAddress && !isLoadingHistory && <Text style={{textAlign: 'center'}}>No recent activity found.</Text>
-          )}
-        </Card.Content>
-      </Card>
+      
+      {isLoadingHistory ? (
+        <ActivityIndicator style={{ marginTop: 20 }} />
+      ) : isErrorHistory ? (
+        <Text style={{color: 'red', textAlign: 'center'}}>Error fetching trade history.</Text>
+      ) : (
+        history && history.length > 0 && (
+          <Card style={styles.card}>
+            <Card.Title title="Recent Trades" titleStyle={styles.cardTitle} />
+            <Card.Content>
+              {history.map((trade: any, index: number) => (
+                <List.Item
+                  key={index}
+                  title={`${trade.is_win ? '✅' : '❌'} ${trade.token_name.slice(0, 10)}...`}
+                  description={`PNL: ${trade.pnl_sol.toFixed(4)} SOL`}
+                  titleStyle={styles.listItemTitle}
+                  right={() => <Text>{new Date(trade.last_sell_at).toLocaleDateString()}</Text>}
+                />
+              ))}
+            </Card.Content>
+          </Card>
+        )
+      )}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 16,
+  },
+  refreshIcon: {
+    marginVertical: 16,
+  },
+  date: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 16,
+  },
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  listItemTitle: {
+    fontSize: 16,
+  },
+});

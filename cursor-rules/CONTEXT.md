@@ -18,6 +18,8 @@ Le projet est un monorepo structuré comme suit :
 - **`backend/api/index.js`**: Expose une API REST. Les routes principales sont :
     - `/leaderboard/*`: Sert les données du classement depuis la base de données.
     - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur. **Déclencheur Clé**: Cet endpoint lance un scan **immédiat et complet** (`getFullHistory`) du worker pour ce nouvel utilisateur afin de peupler ses données initiales.
+    - `/user/:userAddress/stats` (GET): Récupère les statistiques d'un utilisateur, incluant un objet `globalStats` (depuis la vue `degen_rank`) et un objet `platformStats` (calculé à la volée depuis les tables `trades_*`).
+    - `/user/:userAddress/refresh` (POST): Déclenche un scan incrémental pour un utilisateur spécifique. Utilisé par le bouton de rafraîchissement manuel sur l'écran de détails.
     - `/api/cron` (GET): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale et incrémentale** de tous les utilisateurs existants.
 - **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL. Sa robustesse a été grandement améliorée pour gérer les limitations des API externes.
     - **Logique d'Extraction (Helius API)**:
@@ -42,6 +44,7 @@ Le projet est un monorepo structuré comme suit :
     - Le frontend appelle l'API du backend pour récupérer les données.
     - Lors d'une connexion réussie, il appelle l'endpoint `/user/connect` pour s'assurer que l'adresse de l'utilisateur est bien enregistrée côté serveur.
     - Le leaderboard est interactif : un clic sur un utilisateur dans le classement redirige vers sa page de détails (`DetailsScreen`).
+    - `DetailsScreen.tsx` affiche les statistiques détaillées d'un utilisateur. Il présente des statistiques globales, des statistiques par plateforme (`pump.fun`, `letsbonk.fun`), ainsi qu'un historique des trades récents. Il inclut également un bouton de rafraîchissement manuel.
 
 ## 5. Base de Données (Supabase)
 
@@ -111,15 +114,19 @@ Le score est calculé pour chaque trade complet (achat/vente) et stocké dans la
 
 Le système utilise deux processus distincts et complémentaires pour maintenir les données à jour.
 
-### 7.1. Processus 1 : Connexion d'un Nouvel Utilisateur (Scan Ciblé en Temps Réel)
-- **Objectif**: Fournir des données initiales et une place dans le classement immédiatement après la connexion.
-- **Déclencheur**: Un utilisateur se connecte pour la première fois, déclenchant un appel à l'endpoint `POST /user/connect`.
-- **Mécanisme Détaillé**:
-    1.  L'adresse de l'utilisateur est ajoutée (ou confirmée) dans la table `users`.
-    2.  Le `worker.js` est lancé en mode **ciblé** : il scanne l'historique de transactions **complet** de cet utilisateur uniquement.
-    3.  Une fois le scan terminé, le timestamp personnel `last_scanned_at` de l'utilisateur est mis à jour dans la table `users`.
-    4.  Enfin, la vue matérialisée `degen_rank` est rafraîchie pour que le nouvel utilisateur y apparaisse.
-- **Timestamp Global**: Le `last_global_update_at` de la table `system_status` **n'est pas** modifié durant ce processus.
+### 7.1. Processus 1 : Connexion d'un Nouvel Utilisateur (Scan Ciblé et Intelligent)
+Objectif: Fournir des données initiales et une place dans le classement, uniquement si l'utilisateur est nouveau.
+Déclencheur: Un utilisateur se connecte à l'application. Le frontend appelle l'endpoint POST /user/connect.
+Mécanisme Détaillé:
+Le backend reçoit la requête et vérifie si l'adresse de l'utilisateur existe déjà dans la table users.
+Si l'utilisateur n'existe pas :
+Il est ajouté à la table users.
+Le worker.js est lancé en arrière-plan en mode ciblé pour scanner son historique complet.
+Le last_scanned_at de l'utilisateur est mis à jour.
+La vue matérialisée degen_rank est rafraîchie.
+Si l'utilisateur existe déjà :
+Le serveur renvoie une réponse de succès et ne fait rien d'autre. Aucun scan n'est déclenché.
+Timestamp Global: Le last_global_update_at n'est pas modifié durant ce processus.
 
 ### 7.2. Processus 2 : Mise à Jour Quotidienne (Scan Global Manuel)
 - **Objectif**: Mettre à jour les données de trade pour **tous** les utilisateurs enregistrés et actualiser la date de référence globale.
@@ -129,6 +136,18 @@ Le système utilise deux processus distincts et complémentaires pour maintenir 
     2.  Le `worker.js` est lancé en mode **global** : il scanne les transactions **récentes** de tous les utilisateurs présents dans la table `users`.
     3.  Une fois le scan de **tous** les utilisateurs terminé avec succès, le timestamp `last_global_update_at` est mis à jour dans la table `system_status`.
     4.  Enfin, la vue matérialisée `degen_rank` est rafraîchie pour refléter les nouvelles données de tout le classement.
+
+### 7.3. Processus 3 : Rafraîchissement Manuel d'un Utilisateur (Scan Ciblé Incrémental)
+- **Objectif**: Permettre à un utilisateur de mettre à jour ses propres statistiques à la demande, sans attendre le scan global.
+- **Déclencheur**: L'utilisateur appuie sur le bouton "Rafraîchir" sur son écran de détails (`DetailsScreen.tsx`).
+- **Mécanisme Détaillé**:
+    1.  Le frontend appelle l'endpoint `POST /user/:userAddress/refresh`.
+    2.  Le backend lance le `worker.js` en arrière-plan, en mode **ciblé** et **incrémental** pour cet utilisateur uniquement.
+    3.  Le `last_scanned_at` de l'utilisateur est mis à jour.
+    4.  La vue matérialisée `degen_rank` est rafraîchie.
+    5.  Le frontend invalide ses caches de données après un court délai pour récupérer et afficher les nouvelles statistiques.
+- **Timestamp Global**: Le `last_global_update_at` n'est pas modifié durant ce processus.
+
 
 ## 8. Démarrage du Projet
 

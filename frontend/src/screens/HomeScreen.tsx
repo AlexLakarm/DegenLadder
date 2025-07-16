@@ -39,7 +39,7 @@ export function HomeScreen() {
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ address: userAddress }),
+            body: JSON.stringify({ userAddress: userAddress }),
           });
           if (!response.ok) {
             const errorData = await response.json();
