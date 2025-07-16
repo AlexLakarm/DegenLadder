@@ -1,10 +1,10 @@
 import React from 'react';
-import { ScrollView, View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { theme } from '../theme';
+import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useTheme } from 'react-native-paper';
 
 export function PrivacyPolicyScreen() {
-  const colorScheme = useColorScheme();
-  const styles = getStyles(colorScheme);
+  const theme = useTheme(); // Utiliser le hook pour le thème dynamique
+  const styles = getStyles(theme);
 
   return (
     <ScrollView style={styles.container}>
@@ -62,10 +62,10 @@ export function PrivacyPolicyScreen() {
   );
 }
 
-const getStyles = (colorScheme: 'light' | 'dark' | null | undefined) => StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colorScheme === 'dark' ? theme.colors.backgroundDark : theme.colors.backgroundLight,
+    backgroundColor: theme.colors.background,
   },
   content: {
     padding: 20,
@@ -73,26 +73,26 @@ const getStyles = (colorScheme: 'light' | 'dark' | null | undefined) => StyleShe
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+    color: theme.colors.onSurface,
     marginBottom: 10,
   },
   lastUpdated: {
     fontSize: 12,
-    color: theme.colors.textMuted,
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 20,
     fontStyle: 'italic',
   },
   heading: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+    color: theme.colors.onSurface,
     marginTop: 20,
     marginBottom: 10,
   },
   paragraph: {
     fontSize: 16,
     lineHeight: 24,
-    color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+    color: theme.colors.onSurface,
     textAlign: 'justify',
   },
   list: {
@@ -102,6 +102,6 @@ const getStyles = (colorScheme: 'light' | 'dark' | null | undefined) => StyleShe
   listItem: {
     fontSize: 16,
     lineHeight: 24,
-    color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+    color: theme.colors.onSurface,
   }
 }); 

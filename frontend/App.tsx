@@ -10,7 +10,9 @@ import { ConnectionProvider } from "./src/utils/ConnectionProvider";
 import { AppNavigator } from "./src/navigators/AppNavigator";
 import { ClusterProvider } from "./src/components/cluster/cluster-data-access";
 
-import { theme } from './src/theme';
+import { theme as appTheme } from './src/theme';
+import { useColorScheme } from "react-native";
+import { MD3DarkTheme, MD3LightTheme } from "react-native-paper";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,12 @@ LogBox.ignoreLogs([
 ]);
 
 export default function App() {
+  const colorScheme = useColorScheme();
+
+  const theme = colorScheme === 'dark' 
+    ? { ...MD3DarkTheme, colors: { ...MD3DarkTheme.colors, ...appTheme.colors } }
+    : { ...MD3LightTheme, colors: { ...MD3LightTheme.colors, ...appTheme.colors } };
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>

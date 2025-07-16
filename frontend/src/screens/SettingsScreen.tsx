@@ -4,20 +4,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   useColorScheme,
-  Linking,
 } from "react-native";
 import React from "react";
 import { useAuthorization } from "../utils/useAuthorization";
-import { useMobileWallet } from '../utils/useMobileWallet'; // Correction du chemin
-import { Appbar, Button } from "react-native-paper";
-import { theme } from "../theme";
+import { useMobileWallet } from '../utils/useMobileWallet';
+import { Appbar, Button, useTheme } from "react-native-paper";
 import { useNavigation } from '@react-navigation/native';
 
 export function SettingsScreen() {
-  const { disconnect } = useMobileWallet(); // Utilisation de la bonne fonction
+  const theme = useTheme(); // Utiliser le hook pour le thème dynamique
+  const { disconnect } = useMobileWallet();
   const { selectedAccount } = useAuthorization();
-  const colorScheme = useColorScheme();
-  const styles = getStyles(colorScheme);
+  const styles = getStyles(theme);
   const navigation = useNavigation();
 
   const handleDisconnect = async () => {
@@ -28,24 +26,18 @@ export function SettingsScreen() {
     <>
       <Appbar.Header
         style={{
-          backgroundColor:
-            colorScheme === "dark"
-              ? theme.colors.backgroundDark
-              : theme.colors.backgroundLight,
+          backgroundColor: theme.colors.background,
         }}
       >
         <Appbar.Content
           title="Settings"
           titleStyle={{
-            color:
-              colorScheme === "dark"
-                ? theme.colors.textDark
-                : theme.colors.textLight,
+            color: theme.colors.onSurface,
             fontWeight: "bold",
           }}
         />
       </Appbar.Header>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Compte</Text>
           <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('PrivacyPolicy')}>
@@ -68,15 +60,11 @@ export function SettingsScreen() {
   );
 }
 
-const getStyles = (colorScheme: "light" | "dark" | null | undefined) =>
+const getStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
       padding: 16,
-      backgroundColor:
-        colorScheme === "dark"
-          ? theme.colors.backgroundDark
-          : theme.colors.backgroundLight,
     },
     section: {
       marginBottom: 24,
@@ -84,11 +72,11 @@ const getStyles = (colorScheme: "light" | "dark" | null | undefined) =>
     sectionTitle: {
       fontSize: 18,
       fontWeight: 'bold',
-      color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+      color: theme.colors.onSurface,
       marginBottom: 12,
     },
     item: {
-      backgroundColor: colorScheme === 'dark' ? '#2c2c2e' : '#ffffff',
+      backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 14,
       borderRadius: 10,
@@ -98,11 +86,11 @@ const getStyles = (colorScheme: "light" | "dark" | null | undefined) =>
     },
     itemText: {
       fontSize: 16,
-      color: colorScheme === 'dark' ? theme.colors.textDark : theme.colors.textLight,
+      color: theme.colors.onSurface,
     },
     itemArrow: {
       fontSize: 20,
-      color: theme.colors.textMuted,
+      color: theme.colors.onSurfaceVariant,
     },
     button: {
       marginTop: 20,

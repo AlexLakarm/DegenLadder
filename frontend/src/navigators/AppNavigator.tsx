@@ -57,7 +57,11 @@ const AppStack = () => {
         component={HomeNavigator}
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="Settings" component={Screens.SettingsScreen} />
+      <Stack.Screen 
+        name="Settings" 
+        component={Screens.SettingsScreen}
+        options={{ headerShown: false }} 
+      />
       <Stack.Screen 
         name="PrivacyPolicy" 
         component={PrivacyPolicyScreen}
