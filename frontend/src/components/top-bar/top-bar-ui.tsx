@@ -5,8 +5,18 @@ import { useNavigation } from "@react-navigation/native";
 import { ellipsify } from "../../utils/ellipsify";
 import { useState } from "react";
 import * as Clipboard from "expo-clipboard";
-import { Linking } from "react-native";
+import { Linking, Image, StyleSheet } from "react-native";
 import { useCluster } from "../cluster/cluster-data-access";
+
+export function TopBarLogo() {
+  return (
+    <Image
+      source={require("../../../assets/ladder3.png")}
+      style={styles.logo}
+      resizeMode="contain"
+    />
+  );
+}
 
 export function TopBarWalletButton({
   selectedAccount,
@@ -100,3 +110,10 @@ export function TopBarWalletMenu() {
     </Menu>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: {
+    width: 40,
+    height: 40,
+  },
+});
