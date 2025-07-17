@@ -27,7 +27,7 @@ export function AccountDetailFeature({
   }
 
   const handleShare = () => {
-    const text = `I'm ranked #${currentUser.rank} on DegenRank! Check out my profile on degenrank.xyz. #degenrank`;
+    const text = `I'm ranked #${currentUser.rank} on DegenLadder! Check out my profile on degenladder.xyz. #degenladder`;
     const url = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
     Linking.openURL(url).catch((err) =>
       console.error("Failed to open URL:", err)

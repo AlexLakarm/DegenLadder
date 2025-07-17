@@ -79,7 +79,7 @@ export function HomeScreen() {
   const onPostToX = async () => {
     if (!currentUserData) return;
 
-    const text = `I'm rank #${currentUserData.rank} on DegenRank with a degen score of ${currentUserData.degen_score} points! See how you stack up. #DegenRank #Solana\n\nJoin me by downloading the app here: [LINK_TO_UPDATE]`;
+    const text = `I'm rank #${currentUserData.rank} on DegenLadder with a degen score of ${currentUserData.degen_score} points! See how you stack up. #DegenLadder #Solana\n\nJoin me by downloading the app here: [LINK_TO_UPDATE]`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 
     try {
@@ -180,7 +180,7 @@ export function HomeScreen() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
     >
       <View style={styles.headerContainer}>
-        <AppTitle>DegenRank</AppTitle>
+        <AppTitle>DegenLadder</AppTitle>
       </View>
 
       {isLoading && <ActivityIndicator size="large" />}

@@ -34,7 +34,7 @@ export const SearchUserFeature = ({ onUserFound }: SearchUserFeatureProps) => {
             const response = await fetch(`${API_ENDPOINT}/user/${address.trim()}/exists`);
 
             if (response.status === 404) {
-                setError('Address not found. This user does not use DegenRank.');
+                setError('Address not found. This user does not use DegenLadder.');
                 return;
             }
 
@@ -49,7 +49,7 @@ export const SearchUserFeature = ({ onUserFound }: SearchUserFeatureProps) => {
                 hideModal();
                 onUserFound(address.trim());
             } else {
-                setError('Address not found. This user does not use DegenRank.');
+                setError('Address not found. This user does not use DegenLadder.');
             }
         } catch (e) {
             setError('Failed to connect to the server.');

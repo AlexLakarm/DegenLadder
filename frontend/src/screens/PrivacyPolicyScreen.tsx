@@ -14,12 +14,12 @@ export function PrivacyPolicyScreen() {
 
         <Text style={styles.heading}>1. Introduction</Text>
         <Text style={styles.paragraph}>
-          Welcome to DegenRank. This Privacy Policy is intended to inform you about how we handle your information when you use our application. By using DegenRank, you agree to the practices described in this document.
+          Welcome to DegenLadder. This Privacy Policy is intended to inform you about how we handle your information when you use our application. By using DegenLadder, you agree to the practices described in this document.
         </Text>
 
         <Text style={styles.heading}>2. Data We Use</Text>
         <Text style={styles.paragraph}>
-          DegenRank operates by exclusively using public and accessible data from the Solana blockchain. When you connect your wallet to our application, the only piece of information we record is your <Text style={{fontWeight: 'bold'}}>public wallet address</Text>.
+          DegenLadder operates by exclusively using public and accessible data from the Solana blockchain. When you connect your wallet to our application, the only piece of information we record is your <Text style={{fontWeight: 'bold'}}>public wallet address</Text>.
         </Text>
         <Text style={styles.paragraph}>
           We do not have access to, nor do we store, your private keys, seed phrases, or any other personally identifiable information (such as your name or email).
@@ -55,7 +55,7 @@ export function PrivacyPolicyScreen() {
 
         <Text style={styles.heading}>7. Contact Us</Text>
         <Text style={styles.paragraph}>
-          For any questions regarding this privacy policy, please contact us at degenrank-legal@gmail.com.
+          For any questions regarding this privacy policy, please contact us at degenladder-legal@gmail.com.
         </Text>
       </View>
     </ScrollView>
