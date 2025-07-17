@@ -1,10 +1,10 @@
-# Contexte du Projet Degenrank
+# Contexte du Projet DegenLadder
 
-Ce document sert de source de vérité pour l'IA afin de maintenir une compréhension complète et à jour du projet Degenrank.
+Ce document sert de source de vérité pour l'IA afin de maintenir une compréhension complète et à jour du projet DegenLadder.
 
 ## 1. Objectif Général
 
-Degenrank est une application web et mobile qui affiche un classement (leaderboard) en temps réel des traders sur différentes plateformes de l'écosystème Solana (ex: pump.fun, Bonk).
+DegenLadder est une application web et mobile qui affiche un classement (leaderboard) en temps réel des traders sur différentes plateformes de l'écosystème Solana (ex: pump.fun, Bonk).
 
 ## 2. Architecture Globale
 
@@ -20,6 +20,7 @@ Le projet est un monorepo structuré comme suit :
     - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur. **Déclencheur Clé**: Cet endpoint lance un scan **immédiat et complet** (`getFullHistory`) du worker pour ce nouvel utilisateur afin de peupler ses données initiales.
     - `/user/:userAddress/stats` (GET): Récupère les statistiques d'un utilisateur, incluant un objet `globalStats` (depuis la vue `degen_rank`) et un objet `platformStats` (calculé à la volée depuis les tables `trades_*`).
     - `/user/:userAddress/refresh` (POST): Déclenche un scan incrémental pour un utilisateur spécifique. Utilisé par le bouton de rafraîchissement manuel sur l'écran de détails.
+    - `/user/:userAddress` (DELETE): Supprime toutes les données liées à l'utilisateur (trades, entrée dans users) et rafraîchit la vue matérialisée `degen_rank`. **Conformité RGPD** : si l'utilisateur se reconnecte, ses données publiques seront automatiquement re-fetch et ré-analysées.
     - `/api/cron` (GET): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale et incrémentale** de tous les utilisateurs existants.
 - **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL. Sa robustesse a été grandement améliorée pour gérer les limitations des API externes.
     - **Logique d'Extraction (Helius API)**:
