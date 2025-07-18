@@ -177,3 +177,18 @@ Lance le scan global incrémental de tous les utilisateurs. C'est la méthode de
 ```bash
 node backend/scripts/runManualWorker.js
 ``` 
+
+### Script `testToken.js`
+Permet d’analyser en détail toutes les transactions d’un wallet pour un token donné (mint), afin de calculer précisément le PNL (Profit and Loss) en SOL et d’afficher toutes les informations utiles sur les achats/ventes de ce token.
+
+- **Utilisation typique :**
+  ```bash
+  node backend/scripts/testToken.js <adresse_wallet> <mint_token>
+  ```
+  Exemple :
+  ```bash
+  node backend/scripts/testToken.js HRFekhACsTUj9tRNHR8VfgBSYZp4BodaQwrqfpSePkMT 9GtvcnDUvGsuibktxiMjLQ2yyBq5akUahuBs8yANbonk
+  ```
+- Ce script ne modifie jamais la base : il est purement analytique et indépendant du worker ou des données stockées.
+- Idéal pour auditer un cas précis, valider la logique du worker ou détecter des incohérences.
+- Il est pertinent de comparer le PNL calculé par ce script avec celui affiché sur dexscreener ou dans la base, pour valider la cohérence des données (ex : top trader sur Valentine). 
