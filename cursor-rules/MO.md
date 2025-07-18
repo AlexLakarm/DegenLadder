@@ -3,14 +3,19 @@
 ## 1. Comment ajouter un utilisateur dans la base de données
 
 - Utiliser le script suivant :
+Depuis /backend (cd backend)
   ```bash
-  node backend/scripts/addUser.js <adresse_wallet1> <adresse_wallet2> ...
+  node scripts/addUser.js <adresse_wallet1> <adresse_wallet2> ...
   ```
 - Ce script :
-  - Ajoute l'utilisateur dans la base si besoin
+  - **Reproduit strictement la logique de la première connexion utilisateur (endpoint `/user/connect`)**
+  - Vérifie si l'utilisateur existe déjà dans la table `users`
+  - Si l'utilisateur n'existe pas, il l'ajoute à la base avec la date de scan
   - Lance automatiquement le scan complet avec la bonne logique (worker natif)
   - Rafraîchit la vue matérialisée `degen_rank` pour mettre à jour le classement
-- **Aucune action manuelle supplémentaire n'est nécessaire.**
+  - **Aucune action manuelle supplémentaire n'est nécessaire.**
+- **Remarque :**
+  - Si l'utilisateur existe déjà, aucun scan n'est relancé (pour rafraîchir un utilisateur existant, utiliser le bouton "refresh" ou le script dédié)
 
 ---
 
@@ -78,8 +83,9 @@
 ## 4. Comment vérifier les résultats de l'ajout d'un utilisateur (addUser)
 
 - Utiliser le script suivant :
+Depuis le dossier backend (cd backend)
   ```bash
-  node backend/scripts/checkUser.js <adresse_wallet>
+  node scripts/checkUser.js <adresse_wallet>
   ```
 - Ce script :
   - Interroge la base Supabase pour afficher toutes les données liées à l'utilisateur (table `users`, `trades_pump`, `trades_bonk`)
