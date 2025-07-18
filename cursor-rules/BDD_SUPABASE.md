@@ -58,6 +58,13 @@ Ce document décrit la structure complète de la base de données utilisée par 
   - `plan` : Type d'abonnement (par défaut 'basic')
   - `last_scanned_at` : Date du dernier scan individuel
 
+### 6. rank_history
+- **Description** : Historique du rang utilisateur pour chaque date de snapshot (permet d'afficher l'évolution du classement jour après jour)
+- **Champs** :
+  - `user_address` : Adresse du wallet utilisateur
+  - `rank` : Rang de l'utilisateur à la date du snapshot
+  - `snapshot_date` : Date du snapshot (clé primaire avec user_address)
+
 ---
 
 ## Annexe : Code SQL de création des tables et de la vue
@@ -196,4 +203,12 @@ create table public.users (
   constraint users_pkey primary key (id),
   constraint users_address_key unique (address)
 ) TABLESPACE pg_default;
+
+-- 6. Table rank_history
+CREATE TABLE rank_history (
+  user_address TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  snapshot_date DATE NOT NULL,
+  PRIMARY KEY (user_address, snapshot_date)
+);
 ``` 

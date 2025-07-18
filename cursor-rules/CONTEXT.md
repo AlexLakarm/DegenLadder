@@ -49,7 +49,7 @@ Le projet est un monorepo structuré comme suit :
 
 ## 5. Base de Données (Supabase)
 
-La base de données contient 3 tables principales, une table de statut et une vue matérialisée.
+La base de données contient 4 tables principales, une table de statut, une vue matérialisée et une table d'historique des rangs.
 
 ### Table `users`
 Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker. Chaque utilisateur a son propre timestamp de scan.
@@ -99,6 +99,18 @@ CREATE TABLE system_status (
 );
 ```
 - `last_global_update_at`: Mis à jour uniquement à la fin d'un scan global réussi de tous les trades.
+
+### Table `rank_history`
+Stocke l'historique du rang utilisateur pour chaque date de snapshot. Permet d'afficher l'évolution du classement jour après jour (flèche, +1/-2, etc).
+
+```sql
+CREATE TABLE rank_history (
+  user_address TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  snapshot_date DATE NOT NULL,
+  PRIMARY KEY (user_address, snapshot_date)
+);
+```
 
 ### Vue Matérialisée `degen_rank`
 Pour garantir des temps de chargement rapides, le classement principal est une **vue matérialisée**. Elle agrège les scores, le PNL et le nombre de trades pour chaque utilisateur.
