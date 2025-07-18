@@ -495,6 +495,20 @@ async function runWorker(userAddress = null, scanMode = 'full') {
   } catch (error) {
     console.error('An error occurred during degen_rank refresh:', error);
   }
+
+  // Purge de l'historique des rangs (rank_history) pour ne garder que 30 jours
+  if (!isSingleUserMode) {
+    try {
+      const { error: purgeError } = await supabase.rpc('purge_rank_history');
+      if (purgeError) {
+        console.error('❌ Error during rank_history purge:', purgeError.message);
+      } else {
+        console.log('✅ rank_history purged (only last 30 days kept).');
+      }
+    } catch (e) {
+      console.error('❌ Exception during rank_history purge:', e.message);
+    }
+  }
   
   console.log('--- Fin du Worker ---');
   return summary;
