@@ -28,7 +28,8 @@ ADD COLUMN plan TEXT DEFAULT 'basic' NOT NULL;
     1. **[✅ DONE] Créer une table d'historique des rangs** (`rank_history`)
     2. **[✅ DONE] Fonction purge_rank_history** (automatique après chaque scan global)
     3. **[✅ DONE] Insertion automatique du snapshot de rang après chaque scan global**
-    4. **[À FAIRE] Affichage frontend de l'évolution du rang** (flèche, variation, etc.)
+    4. **[✅ DONE] Peuplement initial de rank_history avec les données actuelles**
+    5. **[✅ DONE] Affichage frontend de l'évolution du rang** (flèche, variation, etc.)
     5. (Rappel technique et exemples SQL ci-dessous)
 
 ```sql

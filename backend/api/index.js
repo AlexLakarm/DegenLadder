@@ -446,6 +446,68 @@ app.get('/api/cron/run-worker', async (req, res) => {
     }
 });
 
+// Route pour récupérer l'évolution du rang d'un utilisateur
+app.get('/user/:userAddress/rank-evolution', async (req, res) => {
+    const { userAddress } = req.params;
+    
+    try {
+        // Récupérer le rang actuel depuis degen_rank
+        const { data: currentRank, error: currentError } = await supabase
+            .from('degen_rank')
+            .select('rank')
+            .eq('user_address', userAddress)
+            .single();
+
+        if (currentError) {
+            if (currentError.code === 'PGRST116') {
+                return res.status(404).json({ error: 'User not found in current ranking' });
+            }
+            throw currentError;
+        }
+
+        // Récupérer le rang d'hier depuis rank_history
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        const { data: previousRank, error: previousError } = await supabase
+            .from('rank_history')
+            .select('rank')
+            .eq('user_address', userAddress)
+            .eq('snapshot_date', yesterdayStr)
+            .single();
+
+        let evolution = 0;
+        let evolutionType = 'same';
+
+        if (previousError && previousError.code !== 'PGRST116') {
+            throw previousError;
+        }
+
+        if (previousRank) {
+            evolution = previousRank.rank - currentRank.rank;
+            if (evolution > 0) {
+                evolutionType = 'up';
+            } else if (evolution < 0) {
+                evolutionType = 'down';
+            } else {
+                evolutionType = 'same';
+            }
+        }
+
+        res.status(200).json({
+            currentRank: currentRank.rank,
+            previousRank: previousRank ? previousRank.rank : null,
+            evolution: evolution,
+            evolutionType: evolutionType
+        });
+
+    } catch (error) {
+        console.error(`Error fetching rank evolution for ${userAddress}:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch rank evolution' });
+    }
+});
+
 // Route pour récupérer le statut du système (timestamps de mise à jour)
 app.get('/status', async (req, res) => {
     try {

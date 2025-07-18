@@ -29,12 +29,64 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
     navigation.navigate('Details', { userAddress: item.user_address });
   };
 
+  // Fonction pour afficher l'évolution du rang
+  const renderRankChange = () => {
+    if (item.rankChange24h === 'same' || item.rankChange24h === 0) {
+      return (
+        <View style={styles.rankChangeContainer}>
+          <MaterialCommunityIcon 
+            name="minus" 
+            size={12} 
+            color={theme.colors.onSurfaceVariant} 
+          />
+        </View>
+      );
+    }
+    
+    if (item.rankChange24h === 'up' || (typeof item.rankChange24h === 'number' && item.rankChange24h > 0)) {
+      return (
+        <View style={styles.rankChangeContainer}>
+          <MaterialCommunityIcon 
+            name="trending-up" 
+            size={12} 
+            color={theme.colors.primary} 
+          />
+          {typeof item.rankChange24h === 'number' && (
+            <Text style={[styles.rankChangeText, { color: theme.colors.primary }]}>
+              +{item.rankChange24h}
+            </Text>
+          )}
+        </View>
+      );
+    }
+    
+    if (item.rankChange24h === 'down' || (typeof item.rankChange24h === 'number' && item.rankChange24h < 0)) {
+      return (
+        <View style={styles.rankChangeContainer}>
+          <MaterialCommunityIcon 
+            name="trending-down" 
+            size={12} 
+            color={theme.colors.error} 
+          />
+          {typeof item.rankChange24h === 'number' && (
+            <Text style={[styles.rankChangeText, { color: theme.colors.error }]}>
+              {item.rankChange24h}
+            </Text>
+          )}
+        </View>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <TouchableOpacity onPress={handlePress} style={containerStyle}>
       <View style={styles.rankContainer}>
         <Text style={[styles.rank, { color: theme.colors.onSurface }]}>
           #{item.rank}
         </Text>
+        {renderRankChange()}
       </View>
       <View style={styles.userInfo}>
         <Text
@@ -65,11 +117,21 @@ const styles = StyleSheet.create({
   rankContainer: {
     flexDirection: "row",
     alignItems: "center",
-    width: 60,
+    width: 80, // Augmenté pour accommoder l'évolution du rang
   },
   rank: {
     fontWeight: "bold",
     fontSize: 16,
+  },
+  rankChangeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 4,
+  },
+  rankChangeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 2,
   },
   userInfo: {
     flex: 1,

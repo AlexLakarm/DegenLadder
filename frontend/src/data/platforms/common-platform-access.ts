@@ -91,6 +91,31 @@ export const getLeaderboardFromApi = async (platform: 'pump' | 'bonk'): Promise<
   }
 };
 
+// Fonction pour récupérer l'évolution du rang d'un utilisateur
+async function getRankEvolution(userAddress: string): Promise<{ evolution: number; evolutionType: 'up' | 'down' | 'same' }> {
+  try {
+    if (!API_ENDPOINT) {
+      throw new Error("API endpoint is not configured");
+    }
+
+    const response = await fetch(`${API_ENDPOINT}/user/${userAddress}/rank-evolution`);
+    
+    if (!response.ok) {
+      // Si l'utilisateur n'est pas trouvé ou autre erreur, on retourne 'same'
+      return { evolution: 0, evolutionType: 'same' as const };
+    }
+
+    const data = await response.json();
+    return { 
+      evolution: data.evolution, 
+      evolutionType: data.evolutionType 
+    };
+  } catch (error) {
+    console.error(`Failed to fetch rank evolution for ${userAddress}:`, error);
+    return { evolution: 0, evolutionType: 'same' as const };
+  }
+}
+
 // Nouvelle fonction pour le classement global
 export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score'): Promise<LeaderboardEntry[]> {
   try {
@@ -112,7 +137,7 @@ export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: 
 
     const dataFromApi = await response.json();
     
-    // La vue SQL nous donne la plupart des champs, on doit juste les mapper correctement
+    // Créer le leaderboard de base
     const leaderboard: LeaderboardEntry[] = dataFromApi.map((entry: any) => ({
       rank: entry.rank,
       user_address: entry.user_address,
@@ -121,9 +146,30 @@ export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: 
       degen_score: entry.total_degen_score,
       winningTrades: entry.total_wins,
       losingTrades: entry.total_losses,
-      rankChange24h: 'same', // Logique à ajouter plus tard
+      rankChange24h: 'same', // Valeur par défaut
       status: entry.total_pnl_sol > 0 ? 'WIN' : 'LOSS',
     }));
+
+    // Récupérer l'évolution du rang pour chaque utilisateur (limité aux 20 premiers pour les performances)
+    const topUsers = leaderboard.slice(0, 20);
+    const evolutionPromises = topUsers.map(async (entry) => {
+      const evolution = await getRankEvolution(entry.user_address);
+      return {
+        userAddress: entry.user_address,
+        evolution: evolution.evolution,
+        evolutionType: evolution.evolutionType
+      };
+    });
+
+    const evolutions = await Promise.all(evolutionPromises);
+    
+    // Mettre à jour le leaderboard avec les évolutions
+    leaderboard.forEach(entry => {
+      const evolution = evolutions.find(e => e.userAddress === entry.user_address);
+      if (evolution) {
+        entry.rankChange24h = evolution.evolutionType === 'same' ? 'same' : evolution.evolution;
+      }
+    });
 
     return leaderboard;
 

@@ -496,6 +496,20 @@ async function runWorker(userAddress = null, scanMode = 'full') {
     console.error('An error occurred during degen_rank refresh:', error);
   }
 
+  // Insertion du snapshot de rang dans rank_history (après refresh, avant purge)
+  if (!isSingleUserMode) {
+    try {
+      const { error: snapshotError } = await supabase.rpc('insert_rank_snapshot');
+      if (snapshotError) {
+        console.error('❌ Error during rank_history snapshot insertion:', snapshotError.message);
+      } else {
+        console.log('✅ rank_history snapshot inserted for today.');
+      }
+    } catch (e) {
+      console.error('❌ Exception during rank_history snapshot insertion:', e.message);
+    }
+  }
+
   // Purge de l'historique des rangs (rank_history) pour ne garder que 30 jours
   if (!isSingleUserMode) {
     try {
