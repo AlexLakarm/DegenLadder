@@ -373,7 +373,33 @@ app.post('/user/connect', async (req, res) => {
 
             // On lance le worker en arrière-plan pour ne pas bloquer la réponse.
             // Le frontend n'a pas besoin d'attendre la fin du scan.
-            runWorker(userAddress).catch(err => {
+            runWorker(userAddress).then(async () => {
+                // Après le scan, insérer le snapshot dans rank_history
+                try {
+                    const { spawn } = require('child_process');
+                    const path = require('path');
+                    
+                    console.log(`📸 Insertion du snapshot dans rank_history pour ${userAddress}...`);
+                    
+                    const insertSnapshotProcess = spawn('node', [
+                        path.join(__dirname, '../scripts/insertRankSnapshot.js'),
+                        userAddress
+                    ], {
+                        stdio: 'inherit',
+                        cwd: path.join(__dirname, '../scripts')
+                    });
+
+                    insertSnapshotProcess.on('close', (code) => {
+                        if (code === 0) {
+                            console.log(`✅ Snapshot rank_history inséré avec succès pour ${userAddress}.`);
+                        } else {
+                            console.error(`❌ Échec de l'insertion du snapshot pour ${userAddress} (code: ${code})`);
+                        }
+                    });
+                } catch (error) {
+                    console.error(`❌ Échec de l'insertion du snapshot dans rank_history pour ${userAddress}:`, error.message);
+                }
+            }).catch(err => {
                 console.error(`[BACKGROUND] Error during initial scan for ${userAddress}:`, err);
             });
 
