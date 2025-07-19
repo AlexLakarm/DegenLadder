@@ -116,21 +116,15 @@ async function getRecentHistory(address, lastUpdateTimestamp) {
 // et elle prend en charge l'écriture dans la base de données.
 async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastUpdateTimestamp = null) {
   const platformSuffix = platform === 'pump' ? 'pump' : 'bonk';
-  const isTargetWallet = address === 'HRFekhACsTUj9tRNHR8VfgBSYZp4BodaQwrqfpSePkMT';
+
   
-  if (isTargetWallet) {
-    console.log(`🔍 [DEBUG TARGET WALLET] Analyzing history for ${address} on platform ".${platformSuffix}"...`);
-  } else {
-    console.log(`Analyzing history for ${address} on platform ".${platformSuffix}"...`);
-  }
+  console.log(`Analyzing history for ${address} on platform ".${platformSuffix}"...`);
   
   const allTransactions = scanMode === 'incremental' && lastUpdateTimestamp 
     ? await getRecentHistory(address, lastUpdateTimestamp)
     : await getFullHistory(address);
 
-  if (isTargetWallet) {
-    console.log(`🔍 [DEBUG TARGET WALLET] Total transactions found: ${allTransactions.length}`);
-  }
+
 
   // Étape 1: Agréger toutes les données par token avec la logique exacte du script d'analyse détaillée
   const tradesData = {};
@@ -146,9 +140,7 @@ async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastU
     const platformMintsInTx = [...new Set(tokenTransfers.map((t) => t.mint).filter((m) => m && m.endsWith(platformSuffix)))];
     if (platformMintsInTx.length === 0) continue;
 
-    if (isTargetWallet) {
-      console.log(`🔍 [DEBUG TARGET WALLET] Mints détectés pour la plateforme .${platformSuffix} dans la tx ${tx.signature}:`, platformMintsInTx);
-    }
+
 
     // Pour chaque mint de la plateforme dans cette transaction
     for (const mint of platformMintsInTx) {
@@ -189,13 +181,7 @@ async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastU
       // Frais de transaction
       if (tx.feePayer === address) solOut += tx.fee;
 
-      if (isTargetWallet) {
-        console.log(`🔍 [DEBUG TARGET WALLET] Transaction ${tx.signature} - ${isBuy ? 'BUY' : 'SELL'} for ${mint}:`);
-        console.log(`🔍 [DEBUG TARGET WALLET] SOL in: ${solIn / 1e9} | SOL out: ${solOut / 1e9}`);
-        console.log(`🔍 [DEBUG TARGET WALLET] Token transfers:`, tokenTransfers.filter(t => t.mint === mint));
-        console.log(`🔍 [DEBUG TARGET WALLET] Native transfers:`, nativeTransfers);
-        console.log(`🔍 [DEBUG TARGET WALLET] Fee: ${tx.fee / 1e9} SOL`);
-      }
+
       
       if (isBuy) {
         trade.solSpent += (solOut - solIn);
@@ -203,17 +189,13 @@ async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastU
         if (!trade.firstBuyAt) {
           trade.firstBuyAt = new Date(tx.timestamp * 1000).toISOString();
         }
-        if (isTargetWallet) {
-          console.log(`🔍 [DEBUG TARGET WALLET] Achat détecté: SOL dépensé += ${(solOut - solIn) / 1e9}`);
-        }
+
       }
       if (isSell) {
         trade.solReceived += (solIn - solOut);
         trade.sellTransactions.push(tx.signature);
         trade.lastSellAt = new Date(tx.timestamp * 1000).toISOString();
-        if (isTargetWallet) {
-          console.log(`🔍 [DEBUG TARGET WALLET] Vente détectée: SOL reçu += ${(solIn - solOut) / 1e9}`);
-        }
+
       }
     }
   }
@@ -234,15 +216,7 @@ async function analyzeAndStoreTrades(address, platform, scanMode = 'full', lastU
         degen_score += 50 * Math.log(1 + pnl_sol);
       }
 
-      if (isTargetWallet) {
-        console.log(`🔍 [DEBUG TARGET WALLET] COMPLETED TRADE for mint ${mint}:`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - SOL spent: ${trade.solSpent/1e9} SOL`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - SOL received: ${trade.solReceived/1e9} SOL`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - PNL: ${pnl_sol} SOL`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - Status: ${pnl > 0 ? 'WIN' : 'LOSS'}`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - Buy transactions: ${trade.buyTransactions.length}`);
-        console.log(`🔍 [DEBUG TARGET WALLET]   - Sell transactions: ${trade.sellTransactions.length}`);
-      }
+
 
       tradesToUpsert.push({
         user_address: address,
