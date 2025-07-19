@@ -96,10 +96,16 @@ app.get('/leaderboard/global', async (req, res) => {
     const sortColumn = allowedSortColumns[sortBy] || 'total_degen_score'; 
 
     try {
-        const { data: cachedLeaderboard, error } = await supabase
+        let query = supabase
             .from('degen_rank') // On interroge notre nouvelle vue
-            .select('*')
-            .order(sortColumn, { ascending: false }); // Tri dynamique
+            .select('*');
+
+        // Pour le tri par win_rate, on filtre les utilisateurs avec moins de 10 trades
+        if (sortBy === 'win_rate') {
+            query = query.gte('total_trades', 10);
+        }
+
+        const { data: cachedLeaderboard, error } = await query.order(sortColumn, { ascending: false }); // Tri dynamique
 
         if (error) {
             throw error;

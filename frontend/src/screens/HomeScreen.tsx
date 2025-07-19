@@ -220,6 +220,13 @@ export function HomeScreen() {
     pageButton: {
       minWidth: 40,
     },
+    winRateInfo: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: 'center',
+      fontStyle: 'italic',
+      marginBottom: 8,
+    },
   });
 
   return (
@@ -308,9 +315,16 @@ export function HomeScreen() {
             buttons={[
               { value: 'degen_score', label: 'Score' },
               { value: 'pnl', label: 'PNL (SOL)' },
-              { value: 'win_rate', label: 'Win Rate' },
+              { value: 'win_rate', label: 'Win Rate *' },
             ]}
           />
+
+          {/* Message d'information pour Win Rate */}
+          {sortBy === 'win_rate' && (
+            <Text style={styles.winRateInfo}>
+              * Minimum 10 trades required to appear in this ranking
+            </Text>
+          )}
 
           {/* Leaderboard avec pagination */}
           <GlobalLeaderboardFeature data={currentPageData} sortBy={sortBy} />
