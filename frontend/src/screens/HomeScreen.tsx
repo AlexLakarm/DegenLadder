@@ -264,13 +264,13 @@ export function HomeScreen() {
           />
 
           {/* Top 10 */}
-          <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} />
+          <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} sortBy={sortBy} />
 
           {/* My Position (autour de l'utilisateur connecté) */}
           {userAddress && currentUserData && (
             <>
               <PaperText variant="headlineSmall" style={[styles.sectionTitle, { marginTop: 32 }]}>My Position</PaperText>
-              <LeaderboardList data={leaderboardData.slice(Math.max(0, leaderboardData.findIndex(entry => entry.user_address === userAddress) - 3), leaderboardData.findIndex(entry => entry.user_address === userAddress) + 4)} currentUserAddress={userAddress} />
+              <LeaderboardList data={leaderboardData.slice(Math.max(0, leaderboardData.findIndex(entry => entry.user_address === userAddress) - 3), leaderboardData.findIndex(entry => entry.user_address === userAddress) + 4)} currentUserAddress={userAddress} sortBy={sortBy} />
             </>
           )}
 

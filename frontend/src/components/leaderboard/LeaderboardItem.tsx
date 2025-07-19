@@ -9,9 +9,10 @@ import MaterialCommunityIcon from "@expo/vector-icons/MaterialCommunityIcons";
 interface LeaderboardItemProps {
   item: LeaderboardEntry;
   isCurrentUser?: boolean;
+  sortBy?: string; // Nouveau prop pour connaître le mode de tri
 }
 
-export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItemProps) {
+export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_score' }: LeaderboardItemProps) {
   const theme = useTheme();
   const navigation = useNavigation();
 
@@ -31,6 +32,12 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
 
   // Fonction pour afficher l'évolution du rang
   const renderRankChange = () => {
+    // Si on trie par autre chose que degen_score, on n'affiche pas l'évolution du rang
+    // car elle est basée sur le rang par score, pas sur le rang actuel
+    if (sortBy !== 'degen_score') {
+      return null;
+    }
+
     if (item.rankChange24h === 'same' || item.rankChange24h === 0) {
       return (
         <View style={styles.rankChangeContainer}>
@@ -80,6 +87,39 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
     return null;
   };
 
+  // Fonction pour afficher la valeur selon le mode de tri
+  const renderValue = () => {
+    switch (sortBy) {
+      case 'pnl':
+        return (
+          <Text style={[styles.score, { 
+            color: item.pnl_sol >= 0 ? theme.colors.primary : theme.colors.error, 
+            fontWeight: 'bold' 
+          }]}>
+            {item.pnl_sol.toFixed(2)} SOL
+          </Text>
+        );
+      case 'win_rate':
+        const winRate = item.winningTrades + item.losingTrades > 0 
+          ? (item.winningTrades / (item.winningTrades + item.losingTrades) * 100).toFixed(1)
+          : '0.0';
+        return (
+          <Text style={[styles.score, { 
+            color: parseFloat(winRate) >= 50 ? theme.colors.primary : theme.colors.error, 
+            fontWeight: 'bold' 
+          }]}>
+            {winRate}%
+          </Text>
+        );
+      default: // degen_score
+        return (
+          <Text style={[styles.score, { color: theme.colors.onSurface, fontWeight: 'bold' }]}>
+            {item.degen_score} pts
+          </Text>
+        );
+    }
+  };
+
   return (
     <TouchableOpacity onPress={handlePress} style={containerStyle}>
       <View style={styles.rankContainer}>
@@ -97,9 +137,7 @@ export function LeaderboardItem({ item, isCurrentUser = false }: LeaderboardItem
         </Text>
       </View>
       <View style={styles.scoreContainer}>
-        <Text style={[styles.score, { color: theme.colors.onSurface, fontWeight: 'bold' }]}>
-          {item.degen_score} pts
-        </Text>
+        {renderValue()}
       </View>
     </TouchableOpacity>
   );

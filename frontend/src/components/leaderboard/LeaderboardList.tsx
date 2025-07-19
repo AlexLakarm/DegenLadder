@@ -6,9 +6,10 @@ import { LeaderboardEntry, useSystemStatus } from '../../data/leaderboard-data-a
 interface LeaderboardListProps {
   data: LeaderboardEntry[];
   currentUserAddress?: string;
+  sortBy?: string; // Nouveau prop pour le mode de tri
 }
 
-export function LeaderboardList({ data, currentUserAddress }: LeaderboardListProps) {
+export function LeaderboardList({ data, currentUserAddress, sortBy = 'degen_score' }: LeaderboardListProps) {
   const { data: status, isLoading } = useSystemStatus();
 
   const isCurrentUser = (item: LeaderboardEntry) => {
@@ -30,6 +31,7 @@ export function LeaderboardList({ data, currentUserAddress }: LeaderboardListPro
           key={item.user_address} // Utiliser user_address comme clé
           item={item}
           isCurrentUser={isCurrentUser(item)}
+          sortBy={sortBy}
         />
       ))}
     </View>
