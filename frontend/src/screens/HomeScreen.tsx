@@ -24,10 +24,14 @@ export function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
   const [sortBy, setSortBy] = useState('degen_score');
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0); // Nouveau state pour la pagination
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
 
   const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
+
+  // Constantes pour la pagination
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const registerUser = async () => {
@@ -94,6 +98,36 @@ export function HomeScreen() {
   const handleRefresh = useCallback(() => {
     // Implement refresh logic here
   }, []);
+
+  // Logique de pagination
+  const totalPages = leaderboardData ? Math.ceil(leaderboardData.length / ITEMS_PER_PAGE) : 0;
+  const startIndex = currentPage * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentPageData = leaderboardData ? leaderboardData.slice(startIndex, endIndex) : [];
+
+  // Fonctions de navigation
+  const goToPage = (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Reset à la page 0 quand on change de tri ou de recherche
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [sortBy, searchQuery]);
 
   const styles = StyleSheet.create({
     container: {
@@ -170,6 +204,21 @@ export function HomeScreen() {
       color: '#a1a1aa', // zinc-400
       textAlign: 'center',
       lineHeight: 18,
+    },
+    paginationContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginVertical: 16,
+      gap: 8,
+    },
+    paginationInfo: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+      marginHorizontal: 16,
+    },
+    pageButton: {
+      minWidth: 40,
     },
   });
 
@@ -263,8 +312,37 @@ export function HomeScreen() {
             ]}
           />
 
-          {/* Top 10 */}
-          <GlobalLeaderboardFeature data={leaderboardData.slice(0, 10)} sortBy={sortBy} />
+          {/* Leaderboard avec pagination */}
+          <GlobalLeaderboardFeature data={currentPageData} sortBy={sortBy} />
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <View style={styles.paginationContainer}>
+              <Button
+                icon="chevron-left"
+                mode="outlined"
+                onPress={goToPreviousPage}
+                disabled={currentPage === 0}
+                style={styles.pageButton}
+              >
+                Préc
+              </Button>
+              
+              <Text style={styles.paginationInfo}>
+                Page {currentPage + 1} sur {totalPages}
+              </Text>
+              
+              <Button
+                icon="chevron-right"
+                mode="outlined"
+                onPress={goToNextPage}
+                disabled={currentPage === totalPages - 1}
+                style={styles.pageButton}
+              >
+                Suiv
+              </Button>
+            </View>
+          )}
 
           {/* My Position (autour de l'utilisateur connecté) */}
           {userAddress && currentUserData && (
