@@ -136,6 +136,37 @@ async function main() {
     process.exit(1);
   }
 
+  // 6. Insérer le snapshot dans rank_history pour les nouvelles adresses
+  try {
+    const { spawn } = require('child_process');
+    const path = require('path');
+    
+    console.log('\n📸 Insertion du snapshot dans rank_history pour les nouvelles adresses...');
+    
+    const insertSnapshotProcess = spawn('node', [
+      path.join(__dirname, 'insertRankSnapshot.js'),
+      ...addresses
+    ], {
+      stdio: 'inherit',
+      cwd: __dirname
+    });
+
+    await new Promise((resolve, reject) => {
+      insertSnapshotProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ Snapshot rank_history inséré avec succès.');
+          resolve();
+        } else {
+          console.error(`❌ Échec de l'insertion du snapshot (code: ${code})`);
+          reject(new Error(`Insertion snapshot failed with code ${code}`));
+        }
+      });
+    });
+  } catch (error) {
+    console.error('❌ Échec de l\'insertion du snapshot dans rank_history:', error.message);
+    // On ne fait pas planter le script principal pour ça
+  }
+
   console.log('\nScript terminé.');
 }
 
