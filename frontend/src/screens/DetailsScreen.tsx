@@ -111,9 +111,15 @@ export function DetailsScreen() {
     enabled: !!userAddress,
   });
 
-  // Mutation pour le rafraîchissement manuel
+  // Mutation pour le rafraîchissement manuel (uniquement pour votre propre wallet)
   const refreshMutation = useMutation({
-    mutationFn: () => refreshUser(userAddress!),
+    mutationFn: () => {
+      // Vérification de sécurité : on ne peut rafraîchir que son propre wallet
+      if (!isMyOwnProfile) {
+        throw new Error('You can only refresh your own wallet stats');
+      }
+      return refreshUser(userAddress!);
+    },
     onSuccess: (data) => {
       const nextAvailable = data.nextAvailable ? new Date(data.nextAvailable).toLocaleString() : null;
       const message = nextAvailable 
@@ -127,8 +133,15 @@ export function DetailsScreen() {
       }, 10000); // On attend 10s pour laisser le temps au worker
     },
     onError: (error: any) => {
+      // Check if it's a security error (trying to refresh another wallet)
+      if (error.message && error.message.includes('own wallet stats')) {
+        Alert.alert(
+          "Access Denied", 
+          "You can only refresh your own wallet stats. This feature is not available when viewing other users' profiles."
+        );
+      }
       // Check if it's a rate limit error (429)
-      if (error.status === 429 || (error.message && error.message.includes('429'))) {
+      else if (error.status === 429 || (error.message && error.message.includes('429'))) {
         try {
           const errorData = JSON.parse(error.message);
           const title = "Manual Refresh Limit";
@@ -203,14 +216,16 @@ export function DetailsScreen() {
             <Title style={styles.headerTitle}>{isMyOwnProfile ? 'Your DegenStats' : 'User Stats'}</Title>
             <Text style={styles.headerAddress}>{userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 6)}</Text>
           </View>
-          {refreshMutation.isPending ? (
-            <ActivityIndicator />
-          ) : (
-            <IconButton
-              icon="refresh"
-              size={28}
-              onPress={() => refreshMutation.mutate()}
-            />
+          {isMyOwnProfile && (
+            refreshMutation.isPending ? (
+              <ActivityIndicator />
+            ) : (
+              <IconButton
+                icon="refresh"
+                size={28}
+                onPress={() => refreshMutation.mutate()}
+              />
+            )
           )}
         </View>
       )}
