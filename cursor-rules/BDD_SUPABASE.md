@@ -57,6 +57,7 @@ Ce document décrit la structure complète de la base de données utilisée par 
   - `created_at` : Date de création de l'utilisateur
   - `plan` : Type d'abonnement (par défaut 'basic')
   - `last_scanned_at` : Date du dernier scan individuel
+  - `last_manual_refresh_at` : Date du dernier rafraîchissement manuel (limite 24h)
 
 ### 6. rank_history
 - **Description** : Historique du rang utilisateur pour chaque date de snapshot (permet d'afficher l'évolution du classement jour après jour)
@@ -200,6 +201,7 @@ create table public.users (
   created_at timestamp without time zone not null default now(),
   plan text not null default 'basic'::text,
   last_scanned_at timestamp with time zone null,
+  last_manual_refresh_at timestamp with time zone null,
   constraint users_pkey primary key (id),
   constraint users_address_key unique (address)
 ) TABLESPACE pg_default;
