@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Alert } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking } from "react-native";
 import { Card, List, IconButton, Text, Title, useTheme, SegmentedButtons, Chip } from "react-native-paper";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -152,6 +152,21 @@ export function DetailsScreen() {
     }
   };
 
+  // Fonction pour ouvrir les plateformes
+  const openPlatform = (platform: string) => {
+    const urls = {
+      pump: 'https://pump.fun',
+      bonk: 'https://letsbonk.fun'
+    };
+    
+    const url = urls[platform as keyof typeof urls];
+    if (url) {
+      Linking.openURL(url).catch(() => {
+        Alert.alert("Error", "Could not open platform");
+      });
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header Section */}
@@ -296,8 +311,9 @@ export function DetailsScreen() {
                                backgroundColor: trade.platform === 'pump' ? '#E0F2FE' : '#FEF3C7'
                              }}
                              textStyle={{color: trade.platform === 'pump' ? '#0284C7' : '#D97706'}}
+                             onPress={() => openPlatform(trade.platform)}
                              >
-                             {trade.platform}.fun
+                             {trade.platform === 'pump' ? 'pump.fun' : 'letsbonk'}
                            </Chip>
                          </View>
                       )}
