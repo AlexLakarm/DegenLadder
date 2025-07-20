@@ -7,6 +7,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import { useSystemStatus } from "../data/leaderboard-data-access";
 import Constants from "expo-constants";
 import { AnimatedBorderCard } from "../components/card/AnimatedBorderCard";
+import * as Clipboard from 'expo-clipboard';
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -141,6 +142,16 @@ export function DetailsScreen() {
   const globalStats = stats?.globalStats;
   const platformStats = stats?.platformStats;
 
+  // Fonction pour copier l'adresse du token
+  const copyTokenAddress = async (tokenMint: string) => {
+    try {
+      await Clipboard.setStringAsync(tokenMint);
+      Alert.alert("Copied!", "Token address copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy token address");
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header Section */}
@@ -263,7 +274,17 @@ export function DetailsScreen() {
                   {history.map((trade: any, index: number) => (
                     <List.Item
                       key={index}
-                      title={`${trade.token_name.slice(0, 10)}...`}
+                      title={
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text>{`${trade.token_name.slice(0, 10)}...`}</Text>
+                          <IconButton
+                            icon="content-copy"
+                            size={16}
+                            onPress={() => copyTokenAddress(trade.token_name)}
+                            style={{ marginLeft: 8, margin: 0 }}
+                          />
+                        </View>
+                      }
                       description={`Score: ${(trade.degen_score > 0 ? '+' : '')}${Math.round(trade.degen_score ?? 0)} pts`}
                       left={() => <Text style={{fontSize: 24, marginRight: 12}}>{trade.is_win ? '✅' : '❌'}</Text>}
                       right={() => (
