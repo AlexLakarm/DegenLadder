@@ -540,6 +540,37 @@ app.get('/user/:userAddress/rank-evolution', async (req, res) => {
     }
 });
 
+// Route pour récupérer l'historique des scores d'un utilisateur
+app.get('/user/:userAddress/score-history', async (req, res) => {
+    const { userAddress } = req.params;
+    
+    try {
+        // Récupérer l'historique des scores depuis rank_history
+        const { data: scoreHistory, error } = await supabase
+            .from('rank_history')
+            .select('snapshot_date, total_degen_score, rank')
+            .eq('user_address', userAddress)
+            .order('snapshot_date', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        // Formater les données pour le graphique
+        const formattedData = scoreHistory.map(entry => ({
+            date: entry.snapshot_date,
+            score: entry.total_degen_score || 0,
+            rank: entry.rank
+        }));
+
+        res.status(200).json(formattedData);
+
+    } catch (error) {
+        console.error(`Error fetching score history for ${userAddress}:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch score history' });
+    }
+});
+
 // Route pour récupérer le statut du système (timestamps de mise à jour)
 app.get('/status', async (req, res) => {
     try {
