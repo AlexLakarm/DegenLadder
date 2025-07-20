@@ -5,16 +5,35 @@ import { useNavigation } from "@react-navigation/native";
 import { ellipsify } from "../../utils/ellipsify";
 import { useState } from "react";
 import * as Clipboard from "expo-clipboard";
-import { Linking, Image, StyleSheet } from "react-native";
+import { Linking, Image, StyleSheet, View } from "react-native";
 import { useCluster } from "../cluster/cluster-data-access";
 
 export function TopBarLogo() {
+  const openTwitter = () => {
+    Linking.openURL('https://x.com/DegenLadder');
+  };
+
   return (
-    <Image
-      source={require("../../../assets/ladder3.png")}
-      style={styles.logo}
-      resizeMode="contain"
-    />
+    <View style={styles.logoContainer}>
+      <Image
+        source={require("../../../assets/ladder3.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <IconButton
+        icon={() => (
+          <Image
+            source={require("../../../assets/X-logo-social-media-icon-transparent-png.png")}
+            style={styles.xLogo}
+            resizeMode="contain"
+          />
+        )}
+        mode="text"
+        size={20}
+        onPress={openTwitter}
+        style={styles.twitterButton}
+      />
+    </View>
   );
 }
 
@@ -112,8 +131,19 @@ export function TopBarWalletMenu() {
 }
 
 const styles = StyleSheet.create({
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   logo: {
     width: 40,
     height: 40,
+  },
+  twitterButton: {
+    marginLeft: 8,
+  },
+  xLogo: {
+    width: 44,
+    height: 44,
   },
 });

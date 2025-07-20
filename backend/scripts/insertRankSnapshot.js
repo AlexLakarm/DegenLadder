@@ -26,7 +26,7 @@ async function insertRankSnapshot(addresses = []) {
       console.log(`🎯 Insertion pour ${addresses.length} adresse(s) spécifique(s)...`);
       const { data, error } = await supabase
         .from('degen_rank')
-        .select('user_address, rank')
+        .select('user_address, rank, total_degen_score')
         .in('user_address', addresses)
         .order('rank', { ascending: true });
       
@@ -38,7 +38,7 @@ async function insertRankSnapshot(addresses = []) {
       console.log('🌍 Insertion pour tous les utilisateurs...');
       const { data, error } = await supabase
         .from('degen_rank')
-        .select('user_address, rank')
+        .select('user_address, rank, total_degen_score')
         .order('rank', { ascending: true });
       
       if (error) {
@@ -58,6 +58,7 @@ async function insertRankSnapshot(addresses = []) {
     const rankHistoryData = degenRankData.map(user => ({
       user_address: user.user_address,
       rank: user.rank,
+      total_degen_score: user.total_degen_score,
       snapshot_date: today
     }));
 
@@ -80,7 +81,7 @@ async function insertRankSnapshot(addresses = []) {
     if (insertData.length > 0) {
       console.log('\n📋 Exemples d\'enregistrements:');
       insertData.slice(0, 5).forEach((record, index) => {
-        console.log(`  ${index + 1}. User ${record.user_address.substring(0, 8)}...: Rank ${record.rank}`);
+        console.log(`  ${index + 1}. User ${record.user_address.substring(0, 8)}...: Rank ${record.rank} (${record.total_degen_score} pts)`);
       });
     }
 
