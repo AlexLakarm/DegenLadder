@@ -41,7 +41,10 @@ async function refreshUser(userAddress: string) {
     method: 'POST',
   });
   if (!response.ok) {
-    throw new Error('Failed to initiate refresh');
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(JSON.stringify(errorData));
+    (error as any).status = response.status;
+    throw error;
   }
   return response.json();
 }
@@ -111,15 +114,38 @@ export function DetailsScreen() {
   // Mutation pour le rafraîchissement manuel
   const refreshMutation = useMutation({
     mutationFn: () => refreshUser(userAddress!),
-    onSuccess: () => {
-      Alert.alert("Refresh Started", "Your stats will be updated in a moment.");
+    onSuccess: (data) => {
+      const nextAvailable = data.nextAvailable ? new Date(data.nextAvailable).toLocaleString() : null;
+      const message = nextAvailable 
+        ? `Your stats refresh has been initiated and will be updated shortly.\n\nNext manual refresh available: ${nextAvailable}`
+        : "Your stats refresh has been initiated and will be updated shortly.";
+      
+      Alert.alert("Manual Refresh Started", message);
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['userStats', userAddress] });
         queryClient.invalidateQueries({ queryKey: ['userHistory', userAddress] });
       }, 10000); // On attend 10s pour laisser le temps au worker
     },
-    onError: (error) => {
-      Alert.alert("Refresh Failed", "Could not start the refresh process. Please try again later.");
+    onError: (error: any) => {
+      // Check if it's a rate limit error (429)
+      if (error.status === 429 || (error.message && error.message.includes('429'))) {
+        try {
+          const errorData = JSON.parse(error.message);
+          const title = "Manual Refresh Limit";
+          const message = errorData.message || "You can only refresh your stats manually once every 24 hours. This helps us maintain optimal performance for all users.";
+          Alert.alert(title, message);
+        } catch {
+          Alert.alert(
+            "Manual Refresh Limit", 
+            "You can only refresh your stats manually once every 24 hours. This helps us maintain optimal performance for all users."
+          );
+        }
+      } else {
+        Alert.alert(
+          "Refresh Unavailable", 
+          "The manual refresh feature is temporarily unavailable. Your stats are automatically updated daily. Please try again later."
+        );
+      }
       console.error("Refresh failed", error);
     }
   });
