@@ -7,6 +7,7 @@ import { useAuthorization } from "../utils/useAuthorization";
 import { useSystemStatus } from "../data/leaderboard-data-access";
 import Constants from "expo-constants";
 import { AnimatedBorderCard } from "../components/card/AnimatedBorderCard";
+import { ScoreEvolutionChart } from "../components/leaderboard/ScoreEvolutionChart";
 import * as Clipboard from 'expo-clipboard';
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
@@ -202,7 +203,7 @@ export function DetailsScreen() {
             <View style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Total PNL (SOL)</Text>
               <Title style={[styles.summaryValue, { color: (globalStats.total_pnl_sol ?? 0) >= 0 ? '#22c55e' : '#ef4444' }]}>
-                {(globalStats.total_pnl_sol ?? 0).toFixed(4)}
+                {(globalStats.total_pnl_sol ?? 0).toFixed(2)}
               </Title>
             </View>
             <View style={styles.summaryBox}>
@@ -212,6 +213,9 @@ export function DetailsScreen() {
               </Title>
             </View>
           </View>
+
+          {/* Score Evolution Chart */}
+          <ScoreEvolutionChart userAddress={userAddress} />
           
           {/* Global Stats Grid */}
           <View style={styles.statsGrid}>
@@ -383,7 +387,7 @@ const styles = StyleSheet.create({
   summaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 24,
+    marginBottom: 8,
     paddingVertical: 16,
     backgroundColor: '#18181B',
     borderRadius: 12,
