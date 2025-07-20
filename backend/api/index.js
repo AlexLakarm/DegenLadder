@@ -325,14 +325,54 @@ app.post('/user/:userAddress/refresh', async (req, res) => {
     try {
         console.log(`Manual refresh requested for user: ${userAddress}.`);
 
-        // On lance le worker en arrière-plan pour un scan incrémental.
-        // Le frontend n'a pas besoin d'attendre la fin du scan.
-        // NOTE: Le deuxième paramètre 'incremental' sera ajouté à la logique du worker.
+        // Check if user exists and get last manual refresh time
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('last_manual_refresh_at')
+            .eq('address', userAddress)
+            .single();
+
+        if (userError) {
+            console.error(`User not found: ${userAddress}`);
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Check if 24 hours have passed since last manual refresh
+        const now = new Date();
+        const lastRefresh = user.last_manual_refresh_at ? new Date(user.last_manual_refresh_at) : null;
+        const hoursSinceLastRefresh = lastRefresh ? (now - lastRefresh) / (1000 * 60 * 60) : 24;
+
+        if (hoursSinceLastRefresh < 24) {
+            const remainingHours = Math.ceil(24 - hoursSinceLastRefresh);
+            console.log(`Manual refresh blocked for ${userAddress}. Last refresh: ${lastRefresh}, Hours since: ${hoursSinceLastRefresh.toFixed(1)}`);
+            return res.status(429).json({ 
+                error: 'Manual refresh limit reached',
+                message: `You can only refresh your stats manually once every 24 hours. Please wait ${remainingHours} more hour(s). Your stats are automatically updated daily.`,
+                lastRefresh: lastRefresh,
+                nextAvailable: new Date(lastRefresh.getTime() + 24 * 60 * 60 * 1000)
+            });
+        }
+
+        // Update last_manual_refresh_at before starting the worker
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ last_manual_refresh_at: now.toISOString() })
+            .eq('address', userAddress);
+
+        if (updateError) {
+            console.error(`Failed to update last_manual_refresh_at for ${userAddress}:`, updateError);
+            return res.status(500).json({ error: 'Failed to update refresh timestamp' });
+        }
+
+        // Launch the worker in background for incremental scan
         runWorker(userAddress, 'incremental').catch(err => {
             console.error(`[BACKGROUND] Error during manual refresh for ${userAddress}:`, err);
         });
 
-        res.status(202).json({ message: 'Refresh initiated successfully. Data will be updated shortly.' });
+        res.status(202).json({ 
+            message: 'Manual refresh initiated successfully. Your stats will be updated shortly.',
+            nextAvailable: new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        });
 
     } catch (error) {
         console.error(`Error during manual refresh for ${userAddress}:`, error.message);
