@@ -19,7 +19,8 @@ Le projet est un monorepo structuré comme suit :
     - `/leaderboard/*`: Sert les données du classement depuis la base de données.
     - `/user/connect` (POST): Enregistre une nouvelle adresse utilisateur. **Déclencheur Clé**: Cet endpoint lance un scan **immédiat et complet** (`getFullHistory`) du worker pour ce nouvel utilisateur afin de peupler ses données initiales.
     - `/user/:userAddress/stats` (GET): Récupère les statistiques d'un utilisateur, incluant un objet `globalStats` (depuis la vue `degen_rank`) et un objet `platformStats` (calculé à la volée depuis les tables `trades_*`).
-    - `/user/:userAddress/refresh` (POST): Déclenche un scan incrémental pour un utilisateur spécifique. Utilisé par le bouton de rafraîchissement manuel sur l'écran de détails.
+    - `/user/:userAddress/refresh` (POST): Déclenche un scan incrémental pour un utilisateur spécifique. Utilisé par le bouton de rafraîchissement manuel sur l'écran de détails. **Sécurité** : Limite de 24h entre chaque rafraîchissement manuel par utilisateur, avec vérification de `last_manual_refresh_at`.
+    - `/user/:userAddress/score-history` (GET): Récupère l'historique des scores d'un utilisateur depuis la table `rank_history` pour afficher l'évolution du classement dans un graphique.
     - `/user/:userAddress` (DELETE): Supprime toutes les données liées à l'utilisateur (trades, entrée dans users) et rafraîchit la vue matérialisée `degen_rank`. **Conformité RGPD** : si l'utilisateur se reconnecte, ses données publiques seront automatiquement re-fetch et ré-analysées.
     - `/api/cron` (GET): Endpoint sécurisé par un token secret (`CRON_SECRET`). Il lance la logique du worker pour une **mise à jour globale et incrémentale** de tous les utilisateurs existants.
 - **`worker.js`**: N'est plus un script autonome. C'est une **librairie de fonctions** qui contient la logique ETL. Sa robustesse a été grandement améliorée pour gérer les limitations des API externes.
@@ -52,7 +53,7 @@ Le projet est un monorepo structuré comme suit :
 La base de données contient 4 tables principales, une table de statut, une vue matérialisée et une table d'historique des rangs.
 
 ### Table `users`
-Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker. Chaque utilisateur a son propre timestamp de scan.
+Stocke les adresses des utilisateurs. C'est la **source de vérité** pour le worker. Chaque utilisateur a son propre timestamp de scan et de rafraîchissement manuel.
 **Logique**: Cette table est peuplée via l'endpoint `/user/connect` à chaque fois qu'un nouvel utilisateur se connecte.
 
 ```sql
@@ -61,7 +62,9 @@ CREATE TABLE users (
   address text,
   username text,
   created_at timestamp,
+  plan text DEFAULT 'basic',
   last_scanned_at timestamp with time zone, -- Mis à jour après chaque scan de cet utilisateur
+  last_manual_refresh_at timestamp with time zone, -- Mis à jour après chaque rafraîchissement manuel (limite 24h)
   PRIMARY KEY (address)
 );
 ```
@@ -160,9 +163,32 @@ Timestamp Global: Le last_global_update_at n'est pas modifié durant ce processu
     4.  La vue matérialisée `degen_rank` est rafraîchie.
     5.  Le frontend invalide ses caches de données après un court délai pour récupérer et afficher les nouvelles statistiques.
 - **Timestamp Global**: Le `last_global_update_at` n'est pas modifié durant ce processus.
+- **Sécurité**: Limite de 24h entre chaque rafraîchissement manuel par utilisateur, vérifiée via `last_manual_refresh_at`.
 
+### 7.4. Sécurité du Rafraîchissement Manuel
+- **Limitation Temporelle**: Chaque utilisateur ne peut déclencher qu'un seul rafraîchissement manuel toutes les 24 heures.
+- **Vérification Backend**: L'API `/user/:userAddress/refresh` vérifie `last_manual_refresh_at` avant d'autoriser le rafraîchissement.
+- **Code d'Erreur**: Retourne HTTP 429 (Too Many Requests) si la limite est dépassée.
+- **Sécurité Frontend**: Le bouton de rafraîchissement n'est visible que pour le propre wallet de l'utilisateur connecté.
+- **Messages d'Erreur**: Interface utilisateur claire avec explications sur les limitations et alternatives.
 
-## 8. Démarrage du Projet
+## 8. Composants Frontend Avancés
+
+### 8.1. ScoreEvolutionChart
+- **Fichier**: `frontend/src/components/leaderboard/ScoreEvolutionChart.tsx`
+- **Fonctionnalité**: Affiche l'évolution du score de l'utilisateur sur les 30 derniers jours.
+- **Données**: Utilise l'endpoint `/user/:userAddress/score-history` pour récupérer l'historique depuis `rank_history`.
+- **Design**: Graphique en barres horizontal scrollable avec barres en couleur emerald-500 (#10b981).
+- **Performance**: Aucune dépendance externe pour éviter les problèmes de compatibilité Expo.
+- **Positionnement**: Intégré dans `DetailsScreen.tsx` directement sous les cartes PNL et Degen Score.
+
+### 8.2. Sécurité de l'Interface Utilisateur
+- **Bouton de Rafraîchissement**: Visible uniquement quand `isMyOwnProfile === true`.
+- **Vérification Double**: Contrôle côté interface ET côté logique métier.
+- **Gestion d'Erreurs**: Messages professionnels et informatifs pour guider l'utilisateur.
+- **TypeScript**: Typage strict pour éviter les erreurs de sécurité.
+
+## 9. Démarrage du Projet
 
 Pour lancer l'application, suivez ces étapes dans deux terminaux séparés.
 
@@ -176,7 +202,7 @@ npm run start --prefix backend
 npm start --prefix frontend
 ``` 
 
-## 9. Outils de Développement
+## 10. Outils de Développement
 
 ### Script `add-user`
 Ajoute un nouvel utilisateur et déclenche son scan initial. Simule une première connexion.
@@ -190,8 +216,20 @@ Lance le scan global incrémental de tous les utilisateurs. C'est la méthode de
 node backend/scripts/runManualWorker.js
 ``` 
 
+### Script `deleteUser.js`
+Supprime complètement un utilisateur de toutes les tables (RGPD compliance).
+```bash
+node backend/scripts/deleteUser.js <user_address>
+```
+
+### Script `addManualRefreshColumn.js`
+Ajoute la colonne `last_manual_refresh_at` à la table `users` pour la sécurité du rafraîchissement manuel.
+```bash
+node backend/scripts/addManualRefreshColumn.js
+```
+
 ### Script `testToken.js`
-Permet d’analyser en détail toutes les transactions d’un wallet pour un token donné (mint), afin de calculer précisément le PNL (Profit and Loss) en SOL et d’afficher toutes les informations utiles sur les achats/ventes de ce token.
+Permet d'analyser en détail toutes les transactions d'un wallet pour un token donné (mint), afin de calculer précisément le PNL (Profit and Loss) en SOL et d'afficher toutes les informations utiles sur les achats/ventes de ce token.
 
 - **Utilisation typique :**
   ```bash
@@ -201,6 +239,23 @@ Permet d’analyser en détail toutes les transactions d’un wallet pour un tok
   ```bash
   node backend/scripts/testToken.js HRFekhACsTUj9tRNHR8VfgBSYZp4BodaQwrqfpSePkMT 9GtvcnDUvGsuibktxiMjLQ2yyBq5akUahuBs8yANbonk
   ```
-- Ce script ne modifie jamais la base : il est purement analytique et indépendant du worker ou des données stockées.
+- Ce script ne modifie jamais la base : il est purement analytique et indépendant du worker ou des données stockées.
 - Idéal pour auditer un cas précis, valider la logique du worker ou détecter des incohérences.
-- Il est pertinent de comparer le PNL calculé par ce script avec celui affiché sur dexscreener ou dans la base, pour valider la cohérence des données (ex : top trader sur Valentine). 
+- Il est pertinent de comparer le PNL calculé par ce script avec celui affiché sur dexscreener ou dans la base, pour valider la cohérence des données (ex : top trader sur Valentine).
+
+## 11. Évolutions Récentes du Projet
+
+### 11.1. Sécurité du Rafraîchissement Manuel (2024)
+- **Problème résolu**: Limitation de la surcharge du backend par les rafraîchissements manuels.
+- **Solution**: Implémentation d'une limite de 24h par utilisateur avec tracking dans la base de données.
+- **Impact**: Protection des ressources serveur tout en maintenant une bonne expérience utilisateur.
+
+### 11.2. Graphique d'Évolution des Scores (2024)
+- **Fonctionnalité**: Visualisation de l'évolution du classement sur 30 jours.
+- **Technique**: Composant React Native personnalisé sans dépendances externes.
+- **UX**: Intégration harmonieuse dans l'écran de détails utilisateur.
+
+### 11.3. Amélioration de la Sécurité Frontend (2024)
+- **Problème**: Possibilité de rafraîchir les stats d'autres utilisateurs.
+- **Solution**: Restriction du bouton de rafraîchissement au propre wallet de l'utilisateur.
+- **Sécurité**: Vérifications côté client et serveur pour une protection complète. 

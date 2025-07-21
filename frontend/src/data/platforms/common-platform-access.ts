@@ -117,13 +117,13 @@ async function getRankEvolution(userAddress: string): Promise<{ evolution: numbe
 }
 
 // Nouvelle fonction pour le classement global
-export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score'): Promise<LeaderboardEntry[]> {
+export async function getGlobalLeaderboard(currentUserAddress?: string, sortBy: string = 'degen_score', period: 'yearly' | '24h' = 'yearly'): Promise<LeaderboardEntry[]> {
   try {
     if (!API_ENDPOINT) {
       throw new Error("API endpoint is not configured");
     }
 
-    let API_URL = `${API_ENDPOINT}/leaderboard/global?sortBy=${sortBy}`;
+    let API_URL = `${API_ENDPOINT}/leaderboard/global?sortBy=${sortBy}&period=${period}`;
     if (currentUserAddress) {
       API_URL += `&currentUser=${currentUserAddress}`;
     }

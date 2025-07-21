@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Text, Linking, RefreshControl } from "react-native";
-import { Text as PaperText, useTheme, Button, SegmentedButtons } from "react-native-paper";
+import { Text as PaperText, useTheme, Button, SegmentedButtons, Switch } from "react-native-paper";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -25,6 +25,7 @@ export function HomeScreen() {
   const [sortBy, setSortBy] = useState('degen_score');
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // Nouveau state pour la pagination
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<'yearly' | '24h'>('yearly'); // Ajout du state pour la période
   const { selectedAccount } = useAuthorization();
   const userAddress = selectedAccount?.publicKey.toBase58();
 
@@ -59,9 +60,10 @@ export function HomeScreen() {
     registerUser();
   }, [userAddress, API_ENDPOINT]);
 
+  // On prépare la clé de requête pour inclure la période
   const { data: leaderboardData, isLoading, isError, error, isRefetching } = useQuery({
-    queryKey: ['globalLeaderboard', userAddress, sortBy],
-    queryFn: () => getGlobalLeaderboard(userAddress, sortBy),
+    queryKey: ['globalLeaderboard', userAddress, sortBy, leaderboardPeriod],
+    queryFn: () => getGlobalLeaderboard(userAddress, sortBy, leaderboardPeriod), // À brancher côté backend
   });
 
   // On trouve l'utilisateur courant dans le classement
@@ -245,15 +247,26 @@ export function HomeScreen() {
 
       {leaderboardData && (
         <>
+          {/* Switch période leaderboard (toggle discret) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Text style={{ marginRight: 8, color: leaderboardPeriod === 'yearly' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>Yearly</Text>
+            <Switch
+              value={leaderboardPeriod === '24h'}
+              onValueChange={v => setLeaderboardPeriod(v ? '24h' : 'yearly')}
+              color={theme.colors.primary}
+            />
+            <Text style={{ marginLeft: 8, color: leaderboardPeriod === '24h' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>24h</Text>
+          </View>
+
           {/* Section Résumé Utilisateur - Conditionnelle */}
           {userAddress && currentUserData && (
             <>
               <View style={styles.cardContainer}>
                 <GlowingCard>
-                  <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+                  <PaperText variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface, fontSize: 30 }}>
                     {currentUserData?.degen_score ?? '--'} pts
                   </PaperText>
-                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
+                  <PaperText variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 4, fontSize: 22 }}>
                     Rank: {currentUserData?.rank ?? 'N/A'} / {totalUsers}
                   </PaperText>
                 </GlowingCard>
