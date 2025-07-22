@@ -652,6 +652,57 @@ app.get('/recent-top10-buys', async (req, res) => {
   }
 });
 
+// Endpoint pour rafraîchir les recent_top10_buys (limite 15min)
+app.post('/refresh-recent-top10-buys', async (req, res) => {
+  try {
+    // 1. Récupérer la dernière date de refresh
+    const { data: status, error: statusError } = await supabase
+      .from('system_status')
+      .select('recent_top10_buys_refreshed_at')
+      .eq('id', 1)
+      .single();
+    if (statusError) throw statusError;
+    const lastRefresh = status?.recent_top10_buys_refreshed_at ? new Date(status.recent_top10_buys_refreshed_at) : null;
+    const now = new Date();
+    const MINUTES_LIMIT = 15;
+    let canRefresh = true;
+    let minutesLeft = 0;
+    if (lastRefresh) {
+      const diffMs = now - lastRefresh;
+      const diffMin = diffMs / (1000 * 60);
+      if (diffMin < MINUTES_LIMIT) {
+        canRefresh = false;
+        minutesLeft = Math.ceil(MINUTES_LIMIT - diffMin);
+      }
+    }
+    if (!canRefresh) {
+      return res.status(429).json({
+        error: 'Refresh limit',
+        message: `You can only refresh every ${MINUTES_LIMIT} minutes. Please wait ${minutesLeft} more minute(s).`,
+        nextAvailable: lastRefresh ? new Date(lastRefresh.getTime() + MINUTES_LIMIT * 60 * 1000) : null
+      });
+    }
+    // 2. Lancer le script de refresh (à adapter selon l'infra)
+    // Ici, on simule l'appel du script fetchRecentTop10Buys.js
+    // TODO: remplacer par un appel réel (ex: child_process.spawn ou import dynamique)
+    // await runFetchRecentTop10Buys();
+    console.log('Simulated: fetchRecentTop10Buys.js would be called here.');
+    // 3. Mettre à jour la date de refresh
+    const { error: updateError } = await supabase
+      .from('system_status')
+      .update({ recent_top10_buys_refreshed_at: now.toISOString() })
+      .eq('id', 1);
+    if (updateError) throw updateError;
+    res.status(202).json({
+      message: 'Recent top 10 buys refresh initiated.',
+      refreshedAt: now.toISOString(),
+      nextAvailable: new Date(now.getTime() + MINUTES_LIMIT * 60 * 1000)
+    });
+  } catch (error) {
+    console.error('Error during recent_top10_buys refresh:', error.message);
+    res.status(500).json({ error: 'Failed to refresh recent_top10_buys' });
+  }
+});
 
 // On n'écoute plus ici, on exporte pour Vercel
 // app.listen(port, () => {
