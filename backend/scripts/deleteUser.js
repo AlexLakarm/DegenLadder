@@ -75,6 +75,13 @@ async function deleteUser(userAddress) {
       console.error('❌ Erreur rafraîchissement:', refreshError.message);
     } else {
       console.log('✅ Vue degen_rank rafraîchie');
+      // Rafraîchir aussi la vue 24h
+      const { error: refresh24hError } = await supabase.rpc('refresh_degen_rank_24h');
+      if (refresh24hError) {
+        console.error('❌ Erreur rafraîchissement degen_rank_24h:', refresh24hError.message);
+      } else {
+        console.log('✅ Vue degen_rank_24h rafraîchie');
+      }
     }
     
     console.log('\n✅ Utilisateur supprimé avec succès !');
