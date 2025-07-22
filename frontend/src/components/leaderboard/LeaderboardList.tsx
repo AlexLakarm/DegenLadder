@@ -7,9 +7,10 @@ interface LeaderboardListProps {
   data: LeaderboardEntry[];
   currentUserAddress?: string;
   sortBy?: string; // Nouveau prop pour le mode de tri
+  showRankChange?: boolean; // Nouveau prop pour afficher le changement de rang
 }
 
-export function LeaderboardList({ data, currentUserAddress, sortBy = 'degen_score' }: LeaderboardListProps) {
+export function LeaderboardList({ data, currentUserAddress, sortBy = 'degen_score', showRankChange = true }: LeaderboardListProps) {
   const { data: status, isLoading } = useSystemStatus();
 
   const isCurrentUser = (item: LeaderboardEntry) => {
@@ -32,6 +33,7 @@ export function LeaderboardList({ data, currentUserAddress, sortBy = 'degen_scor
           item={item}
           isCurrentUser={isCurrentUser(item)}
           sortBy={sortBy}
+          showRankChange={showRankChange}
         />
       ))}
     </View>

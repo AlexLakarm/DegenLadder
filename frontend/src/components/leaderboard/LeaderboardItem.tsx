@@ -10,9 +10,10 @@ interface LeaderboardItemProps {
   item: LeaderboardEntry;
   isCurrentUser?: boolean;
   sortBy?: string; // Nouveau prop pour connaître le mode de tri
+  showRankChange?: boolean;
 }
 
-export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_score' }: LeaderboardItemProps) {
+export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_score', showRankChange = true }: LeaderboardItemProps) {
   const theme = useTheme();
   const navigation = useNavigation();
 
@@ -59,9 +60,7 @@ export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_s
             color={theme.colors.primary} 
           />
           {typeof item.rankChange24h === 'number' && (
-            <Text style={[styles.rankChangeText, { color: theme.colors.primary }]}>
-              +{item.rankChange24h}
-            </Text>
+            <Text style={[styles.rankChangeText, { color: theme.colors.primary }]}>+{item.rankChange24h}</Text>
           )}
         </View>
       );
@@ -76,9 +75,7 @@ export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_s
             color={theme.colors.error} 
           />
           {typeof item.rankChange24h === 'number' && (
-            <Text style={[styles.rankChangeText, { color: theme.colors.error }]}>
-              {item.rankChange24h}
-            </Text>
+            <Text style={[styles.rankChangeText, { color: theme.colors.error }]}>{item.rankChange24h}</Text>
           )}
         </View>
       );
@@ -126,7 +123,7 @@ export function LeaderboardItem({ item, isCurrentUser = false, sortBy = 'degen_s
         <Text style={[styles.rank, { color: theme.colors.onSurface }]}>
           #{item.rank}
         </Text>
-        {renderRankChange()}
+        {showRankChange && renderRankChange()}
       </View>
       <View style={styles.userInfo}>
         <Text

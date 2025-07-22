@@ -9,19 +9,19 @@ import { LeaderboardList } from "../components/leaderboard/LeaderboardList";
 import { useAuthorization } from "../utils/useAuthorization";
 import { SignInFeature } from "../components/sign-in/sign-in-feature";
 import Constants from 'expo-constants';
-import { HomeNavigationProp } from "../navigators/HomeNavigator";
 import AppTitle from "../components/gyro-title/AppTitle";
 import { GlowingCard } from "../components/card/GlowingCard";
 import { SearchUserFeature } from "../components/search/SearchUserFeature";
 import { ellipsify } from "../utils/ellipsify";
 import { GlobalLeaderboardFeature } from "../components/leaderboard/GlobalLeaderboardFeature";
+import { Top10BuysBanner } from '../components/leaderboard/Top10BuysBanner';
 
 // Pour le test en web, on utilise une adresse mockée car la connexion n'est pas possible.
 // const MOCK_USER_ADDRESS = "3Dimjf2UDeZvsSuUYU22ovZ6uvF8z6KUnXMmokQuYfi2";
 
 export function HomeScreen() {
   const theme = useTheme();
-  const navigation = useNavigation<HomeNavigationProp>();
+  const navigation = useNavigation<any>(); // désactive le typage strict pour navigation imbriquée
   const [sortBy, setSortBy] = useState('degen_score');
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // Nouveau state pour la pagination
@@ -258,6 +258,9 @@ export function HomeScreen() {
             <Text style={{ marginLeft: 8, color: leaderboardPeriod === '24h' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>24h</Text>
           </View>
 
+          {/* Bandeau défilant Top 10 Buys */}
+          <Top10BuysBanner onPress={() => navigation.navigate('Top10Buys')} />
+
           {/* Section Résumé Utilisateur - Conditionnelle */}
           {userAddress && currentUserData && (
             <>
@@ -340,7 +343,7 @@ export function HomeScreen() {
           )}
 
           {/* Leaderboard avec pagination */}
-          <GlobalLeaderboardFeature data={currentPageData} sortBy={sortBy} />
+          <GlobalLeaderboardFeature data={currentPageData} sortBy={sortBy} showRankChange={leaderboardPeriod === 'yearly'} />
 
           {/* Pagination */}
           {totalPages > 1 && (
