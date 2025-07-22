@@ -1,23 +1,26 @@
 import { createBottomTabNavigator, BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from "react-native-paper";
 import { DetailsScreen, HomeScreen } from "../screens";
 import { TopBar } from "../components/top-bar/top-bar-feature";
 import MaterialCommunityIcon from "@expo/vector-icons/MaterialCommunityIcons";
 import { useAuthorization } from "../utils/useAuthorization";
+import Top10BuysScreen from '../screens/Top10BuysScreen';
+import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 
 export type HomeStackParamList = {
-  Home: undefined;
+  HomeTabs: undefined;
+  Top10Buys: undefined;
+  PrivacyPolicy: undefined;
   Details: { userAddress: string };
 };
 
-export type HomeNavigationProp = BottomTabNavigationProp<HomeStackParamList>;
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator<HomeStackParamList>();
 
-const Tab = createBottomTabNavigator<HomeStackParamList>();
-
-export function HomeNavigator() {
+function HomeTabs() {
   const theme = useTheme();
   const { selectedAccount } = useAuthorization();
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -45,15 +48,18 @@ export function HomeNavigator() {
       <Tab.Screen 
         name="Details" 
         component={DetailsScreen}
-        initialParams={{ userAddress: selectedAccount?.publicKey.toBase58() }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            if (!selectedAccount) {
-              e.preventDefault();
-            }
-          },
-        })}
+        initialParams={{ userAddress: undefined }}
       />
     </Tab.Navigator>
+  );
+}
+
+export function HomeNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="HomeTabs" component={HomeTabs} />
+      <Stack.Screen name="Top10Buys" component={Top10BuysScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+    </Stack.Navigator>
   );
 }
