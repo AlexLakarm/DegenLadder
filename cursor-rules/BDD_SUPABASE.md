@@ -19,6 +19,21 @@ Ce document décrit la structure complète de la base de données utilisée par 
   - `total_losses` : Nombre de trades perdants
   - `win_rate` : Pourcentage de trades gagnants
 
+### 1bis. degen_rank_24h (vue matérialisée)
+- **Description** : Vue matérialisée pour le classement global des utilisateurs sur les 24 dernières heures (rolling window).
+- **Champs** :
+  - `rank` : Rang de l'utilisateur dans le classement 24h
+  - `user_address` : Adresse du wallet utilisateur
+  - `last_scanned_at` : Date du dernier scan de l'utilisateur
+  - `total_degen_score` : Score total (toutes plateformes, sur 24h)
+  - `total_pnl_sol` : PNL total en SOL (toutes plateformes, sur 24h)
+  - `total_trades` : Nombre total de trades (sur 24h)
+  - `total_wins` : Nombre de trades gagnants (sur 24h)
+  - `total_losses` : Nombre de trades perdants (sur 24h)
+  - `win_rate` : Pourcentage de trades gagnants (sur 24h)
+
+> Cette vue utilise uniquement les trades dont `last_sell_at` est supérieur ou égal à NOW() - INTERVAL '24 hours'.
+
 ### 2. system_status
 - **Description** : Statut global du système (timestamp du dernier scan global)
 - **Champs** :
