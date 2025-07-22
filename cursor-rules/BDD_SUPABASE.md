@@ -81,6 +81,20 @@ Ce document décrit la structure complète de la base de données utilisée par 
   - `rank` : Rang de l'utilisateur à la date du snapshot
   - `snapshot_date` : Date du snapshot (clé primaire avec user_address)
 
+### 7. recent_top10_buys
+- **Description** : Table temporaire pour stocker les derniers "buy in" des utilisateurs du top 10 (24h ou 2025) sur les 12 dernières heures, pour affichage rapide côté frontend. Rafraîchie à la demande (max toutes les 15min).
+- **Champs** :
+  - `id` : Identifiant unique (clé primaire)
+  - `user_address` : Adresse du wallet utilisateur
+  - `platform` : Plateforme d'achat ('pump' ou 'bonk')
+  - `token_mint` : Mint du token acheté
+  - `buy_signature` : Signature de la transaction d'achat
+  - `buy_amount_sol` : Montant de l'achat en SOL
+  - `buy_at` : Timestamp de l'achat
+  - `leaderboard_period` : Période du leaderboard concerné ('24h' ou 'yearly')
+  - `token_name` : (optionnel) Nom du token
+  - `created_at` : Date d'insertion dans la table
+
 ---
 
 ## Annexe : Code SQL de création des tables et de la vue
