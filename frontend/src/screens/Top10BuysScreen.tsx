@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Text, SegmentedButtons, Card, useTheme, Button, Chip } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -79,11 +80,23 @@ export default function Top10BuysScreen() {
         renderItem={({ item }) => {
           const isPump = item.platform === 'pump';
           const isBonk = item.platform === 'bonk';
+          const mintShort = `${item.token_mint.slice(0, 6)}...${item.token_mint.slice(-4)}`;
           return (
             <Card style={[styles.card, { backgroundColor: '#18181B' }]}> 
               <Card.Content>
-                <View style={styles.row}>
-                  <Text style={styles.user}>{item.user_address.slice(0, 6)}…</Text>
+                <View style={[styles.row, { alignItems: 'center' }]}> 
+                  {/* Ticker + mint + copy */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', color: theme.colors.onSurface, marginRight: 4 }}>Ticker :</Text>
+                    <Text style={{ color: theme.colors.primary, fontWeight: 'bold', marginRight: 2 }}>{mintShort}</Text>
+                    <TouchableOpacity
+                      onPress={async () => { await Clipboard.setStringAsync(item.token_mint); }}
+                      style={{ marginRight: 8 }}
+                    >
+                      <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 16 }}>📋</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {/* Plateforme */}
                   <Chip
                     style={{
                       backgroundColor: isPump ? '#E0F2FE' : isBonk ? '#FEF3C7' : '#eee',
@@ -94,22 +107,26 @@ export default function Top10BuysScreen() {
                       fontWeight: 'bold',
                       fontSize: 13,
                     }}
-                    onPress={() => {
-                      if (isPump) {
-                        // @ts-ignore
-                        navigation.navigate('WebView', { url: 'https://pump.fun' });
-                      } else if (isBonk) {
-                        // @ts-ignore
-                        navigation.navigate('WebView', { url: 'https://letsbonk.fun' });
+                    onPress={async () => {
+                      let url = '';
+                      if (isPump) url = 'https://pump.fun';
+                      else if (isBonk) url = 'https://letsbonk.fun';
+                      if (url) {
+                        try {
+                          await Linking.openURL(url);
+                        } catch {
+                          Alert.alert('Erreur', "Impossible d'ouvrir le site");
+                        }
                       }
                     }}
                   >
                     {isPump ? 'pump.fun' : isBonk ? 'letsbonk' : item.platform}
                   </Chip>
+                  {/* Montant SOL */}
                   <Text style={styles.amount}>{item.buy_amount_sol.toFixed(4)} SOL</Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={styles.token}>{item.token_mint.slice(0, 6)}…</Text>
+                  <Text style={styles.user}>{item.user_address.slice(0, 6)}…</Text>
                   <Text style={styles.date}>{new Date(item.buy_at).toLocaleString()}</Text>
                 </View>
               </Card.Content>
