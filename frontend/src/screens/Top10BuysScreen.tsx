@@ -147,18 +147,12 @@ export default function Top10BuysScreen() {
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
-        duration={4000}
+        duration={5000}
         style={{
           backgroundColor: snackbar.error ? theme.colors.error : theme.colors.primary,
-          position: 'absolute',
-          top: 32,
-          left: 16,
-          right: 16,
-          zIndex: 1000,
           borderRadius: 10,
           elevation: 6,
         }}
-        wrapperStyle={{ zIndex: 1000 }}
       >
         {snackbar.message}
       </Snackbar>
