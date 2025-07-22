@@ -83,8 +83,8 @@ async function calculateUserRank(userAddress) {
 
 // Route pour récupérer le classement global depuis la vue
 app.get('/leaderboard/global', async (req, res) => {
-    const { currentUser, sortBy } = req.query;
-    console.log(`Leaderboard requested with sort by: ${sortBy}`);
+    const { currentUser, sortBy, period } = req.query;
+    console.log(`Leaderboard requested with sort by: ${sortBy}, period: ${period}`);
 
     // Liste blanche des colonnes autorisées pour le tri
     const allowedSortColumns = {
@@ -95,9 +95,12 @@ app.get('/leaderboard/global', async (req, res) => {
     // Par défaut, on trie par degen_score si le paramètre est invalide ou absent
     const sortColumn = allowedSortColumns[sortBy] || 'total_degen_score'; 
 
+    // Choix de la vue selon la période
+    const leaderboardView = period === '24h' ? 'degen_rank_24h' : 'degen_rank';
+
     try {
         let query = supabase
-            .from('degen_rank') // On interroge notre nouvelle vue
+            .from(leaderboardView)
             .select('*');
 
         // Pour le tri par win_rate, on filtre les utilisateurs avec moins de 10 trades
@@ -630,6 +633,26 @@ app.get('/status', async (req, res) => {
         console.error('Error fetching system status:', error.message);
         res.status(500).json({ error: 'Failed to fetch system status' });
     }
+});
+
+// Endpoint pour exposer les derniers buy in des top 10
+app.get('/recent-top10-buys', async (req, res) => {
+  const period = req.query.period === '24h' ? '24h' : 'yearly';
+  const limit = parseInt(req.query.limit, 10) || 100;
+  try {
+    const { data, error } = await supabase
+      .from('recent_top10_buys')
+      .select('*')
+      .eq('leaderboard_period', period)
+      .order('buy_amount_sol', { ascending: false })
+      .order('buy_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    res.status(200).json(data);
+  } catch (e) {
+    console.error('Error fetching recent top10 buys:', e.message);
+    res.status(500).json({ error: 'Failed to fetch recent top10 buys' });
+  }
 });
 
 
