@@ -5,7 +5,7 @@ import { useTheme } from 'react-native-paper';
 export function Top10BuysBanner({ onPress }: { onPress: () => void }) {
   const theme = useTheme();
   const screenWidth = Dimensions.get('window').width;
-  const marqueeText = '🔥 Last buys from the Top 10 ! 👀 Tap to discover what the best degens are aping ! 🚀 ';
+  const marqueeText = '🔥 Last buys from the Top 10 ! 👀 Tap to discover what the top wallets are aping ! 🚀 ';
   const [textWidth, setTextWidth] = useState(0);
   const animatedValue = useRef(new Animated.Value(0)).current;
 
