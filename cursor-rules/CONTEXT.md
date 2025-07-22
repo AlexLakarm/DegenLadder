@@ -259,3 +259,30 @@ Permet d'analyser en détail toutes les transactions d'un wallet pour un token d
 - **Problème**: Possibilité de rafraîchir les stats d'autres utilisateurs.
 - **Solution**: Restriction du bouton de rafraîchissement au propre wallet de l'utilisateur.
 - **Sécurité**: Vérifications côté client et serveur pour une protection complète. 
+
+## 12. Nouveautés 2024 : Leaderboard 24h & Last Buys
+
+### 12.1. Leaderboard 24h
+- **Vue matérialisée dédiée** : `degen_rank_24h` calcule le classement sur les 24 dernières heures (rolling window, filtre sur `last_sell_at`).
+- **Refresh** : Cette vue est rafraîchie à chaque scan global ou ciblé (worker, ajout user, refresh manuel).
+- **Intégration front** : Un toggle permet de passer du leaderboard annuel au leaderboard 24h. Le titre s’adapte dynamiquement.
+- **Évolution de rang** : Les flèches d’évolution de rang ne sont affichées que sur le leaderboard annuel (pas sur 24h).
+
+### 12.2. Last Buys from the Top 10
+- **Table dédiée** : `recent_top10_buys` stocke les derniers "buy in" des top 10 utilisateurs (24h et annuel).
+- **Endpoint** : `/recent-top10-buys?period=24h|yearly` retourne les derniers achats, triés par date ou montant SOL.
+- **Refresh** : Un endpoint POST `/refresh-recent-top10-buys` permet de rafraîchir la table (limite toutes les 15min, visible dans l’UI avec timestamp du dernier refresh).
+- **Sécurité** : Le refresh est limité côté backend (15min) et le bouton est désactivé côté front si la limite n’est pas atteinte.
+- **UX front** :
+    - Un écran dédié affiche les derniers achats des top 10 (toggle 24h/2025 indépendant du leaderboard principal).
+    - Tri possible par date (plus récent) ou par montant SOL (plus gros buy).
+    - Badge plateforme coloré (pump.fun, letsbonk) avec lien direct.
+    - Affichage des dates en "xhxx ago" pour éviter toute confusion de fuseau horaire.
+    - Snackbar de confirmation lors du refresh (visible en bas de l’écran).
+
+### 12.3. Logique de Refresh et Sécurité
+- **Leaderboard 24h** : Rafraîchi automatiquement à chaque scan global ou ciblé (aucune action manuelle nécessaire).
+- **Last Buys** : Rafraîchissement manuel possible toutes les 15min via bouton dédié, avec feedback visuel et gestion d’erreur.
+
+### 12.4. Roadmap et évolutions
+- Ces deux fonctionnalités sont désormais stables et documentées. Toute évolution future (nouvelle plateforme, analytics, social, etc.) devra respecter cette logique de modularité et de sécurité du refresh. 
