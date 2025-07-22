@@ -92,10 +92,10 @@ async function addUser(address) {
   // 5. Rafraîchir la vue matérialisée après l'ajout
   try {
     await refreshDegenRank();
-    console.log('✅ Vue matérialisée rafraîchie après ajout des utilisateurs.');
+    console.log('✅ Materialized views degen_rank and degen_rank_24h refreshed after user addition.');
     checklist.degenRankRefreshed = true;
   } catch (error) {
-    console.error('❌ Échec du rafraîchissement de la vue matérialisée:', error.message);
+    console.error('❌ Failed to refresh materialized views:', error.message);
     checklist.degenRankRefreshed = false;
   }
 
@@ -130,9 +130,9 @@ async function main() {
   // Rafraîchir la vue matérialisée après l'ajout
   try {
     await refreshDegenRank();
-    console.log('✅ Vue matérialisée rafraîchie après ajout des utilisateurs.');
+    console.log('✅ Materialized views degen_rank and degen_rank_24h refreshed after user addition.');
   } catch (error) {
-    console.error('❌ Échec du rafraîchissement de la vue matérialisée:', error.message);
+    console.error('❌ Failed to refresh materialized views:', error.message);
     process.exit(1);
   }
 

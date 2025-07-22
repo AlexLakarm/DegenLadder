@@ -336,13 +336,26 @@ async function processChunk(usersInChunk, scanMode, isSingleUserMode, globalLast
 }
 
 async function refreshDegenRank() {
-    console.log('\\nRefreshing materialized view: degen_rank...');
+    console.log('\nRefreshing materialized view: degen_rank...');
     const { error } = await supabase.rpc('refresh_degen_rank');
     if (error) {
         console.error('Failed to refresh materialized view:', error.message);
         throw error; // On propage l'erreur pour que l'appelant puisse la gérer
     } else {
         console.log('✅ Materialized view degen_rank has been refreshed successfully.');
+    }
+    // Rafraîchir aussi la vue 24h
+    await refreshDegenRank24h();
+}
+
+async function refreshDegenRank24h() {
+    console.log('\nRefreshing materialized view: degen_rank_24h...');
+    const { error } = await supabase.rpc('refresh_degen_rank_24h');
+    if (error) {
+        console.error('Failed to refresh materialized view degen_rank_24h:', error.message);
+        throw error;
+    } else {
+        console.log('✅ Materialized view degen_rank_24h has been refreshed successfully.');
     }
 }
 

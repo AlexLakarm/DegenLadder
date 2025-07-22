@@ -14,7 +14,7 @@ async function main() {
   try {
     // On appelle runWorker sans argument pour un scan global incrémental
     await runWorker();
-    console.log('\n✅ --- Worker terminé avec succès ---');
+    console.log('\n✅ --- Worker finished successfully (all materialized views refreshed) ---');
     process.exit(0); // Termine le script avec un code de succès
   } catch (error) {
     console.error('\n❌ --- Le Worker a rencontré une erreur fatale ---');
