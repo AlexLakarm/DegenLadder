@@ -51,7 +51,18 @@ function useRecentTop10Buys(period: '24h' | 'yearly') {
 function formatAgo(dateString?: string) {
   if (!dateString) return '';
   const now = new Date();
-  const date = new Date(dateString);
+  let isoString = dateString;
+  // Si format SQL/Postgres (avec espace)
+  if (/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/.test(dateString)) {
+    isoString = dateString.replace(' ', 'T');
+  }
+  // Corrige les offsets courts (+00, +02) en +00:00, +02:00
+  isoString = isoString.replace(/([+-][0-9]{2})(?!:?[0-9]{2})$/, '$1:00');
+  // Si la date n'a ni 'Z' ni offset explicite, on ajoute 'Z' (UTC)
+  if (!/[zZ]|[+-][0-9]{2}:[0-9]{2}$/.test(isoString)) {
+    isoString += 'Z';
+  }
+  const date = new Date(isoString);
   const diffMs = now.getTime() - date.getTime();
   if (diffMs < 0) return 'just now';
   const diffMin = Math.floor(diffMs / (1000 * 60));
@@ -118,9 +129,10 @@ export default function Top10BuysScreen() {
               return (now.getTime() - last.getTime()) < 15 * 60 * 1000;
             })()}
             onPress={async () => {
+              setSnackbar({ visible: true, message: 'Refresh started! This may take a few minutes before new data appears.', error: false });
               try {
                 await refreshMutation.mutateAsync();
-                setSnackbar({ visible: true, message: 'Refresh started!', error: false });
+                // Pas de message de succès, la data se mettra à jour automatiquement
               } catch (e: any) {
                 setSnackbar({ visible: true, message: e.message, error: true });
               }
@@ -151,10 +163,15 @@ export default function Top10BuysScreen() {
         style={{
           backgroundColor: snackbar.error ? theme.colors.error : theme.colors.primary,
           borderRadius: 10,
-          elevation: 6,
+          elevation: 10,
+          position: 'absolute',
+          left: 16,
+          right: 16,
+          bottom: 32,
+          zIndex: 9999,
         }}
       >
-        {snackbar.message}
+        <Text style={{ color: '#000', fontWeight: 'bold' }}>{snackbar.message}</Text>
       </Snackbar>
       {isLoading && <Text style={styles.loading}>Loading...</Text>}
       {isError && <Text style={styles.error}>Error loading data</Text>}
