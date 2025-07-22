@@ -147,8 +147,18 @@ export default function Top10BuysScreen() {
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
-        duration={3000}
-        style={{ backgroundColor: snackbar.error ? theme.colors.error : theme.colors.primary }}
+        duration={4000}
+        style={{
+          backgroundColor: snackbar.error ? theme.colors.error : theme.colors.primary,
+          position: 'absolute',
+          top: 32,
+          left: 16,
+          right: 16,
+          zIndex: 1000,
+          borderRadius: 10,
+          elevation: 6,
+        }}
+        wrapperStyle={{ zIndex: 1000 }}
       >
         {snackbar.message}
       </Snackbar>
@@ -207,7 +217,7 @@ export default function Top10BuysScreen() {
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.user}>{item.user_address.slice(0, 6)}…</Text>
-                  <Text style={styles.date}>{new Date(item.buy_at).toLocaleString()}</Text>
+                  <Text style={styles.date}>{formatAgo(item.buy_at)}</Text>
                 </View>
               </Card.Content>
             </Card>
