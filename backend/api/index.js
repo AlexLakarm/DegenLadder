@@ -421,6 +421,8 @@ app.post('/user/connect', async (req, res) => {
             // Le frontend n'a pas besoin d'attendre la fin du scan.
             runWorker(userAddress).then(async () => {
                 // Après le scan, insérer le snapshot dans rank_history
+                // Les vues matérialisées degen_rank et degen_rank_24h sont rafraîchies automatiquement par le worker.
+                console.log('✅ Both materialized views degen_rank and degen_rank_24h have been refreshed by the worker.');
                 try {
                     const { spawn } = require('child_process');
                     const path = require('path');
