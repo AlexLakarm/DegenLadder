@@ -308,7 +308,7 @@ export function HomeScreen() {
 
           <View style={styles.leaderboardHeader}>
             <PaperText variant="headlineSmall" style={styles.sectionTitle}>
-              Leaderboard
+              {leaderboardPeriod === '24h' ? '24h leaderboard' : '2025 leaderboard'}
             </PaperText>
             <SearchUserFeature onUserFound={setSearchQuery} />
           </View>
