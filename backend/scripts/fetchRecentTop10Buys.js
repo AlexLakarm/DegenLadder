@@ -67,7 +67,7 @@ async function fetchRecentBuysForUser(address, sinceTimestamp) {
             token_mint: t.mint,
             buy_signature: tx.signature,
             buy_amount_sol: buyAmountSol,
-            buy_at: txDate.toISOString(),
+            buy_at: txDate.toISOString().replace(/\.[0-9]{3}Z$/, 'Z'), // Forcer le format ISO UTC avec 'Z'
             token_name: null, // à enrichir si besoin
           });
         }
@@ -81,19 +81,36 @@ async function fetchRecentBuysForUser(address, sinceTimestamp) {
 }
 
 async function main() {
+  console.log(`\n=== [${new Date().toISOString()}] Début du script fetchRecentTop10Buys.js ===`);
   try {
+    const nowSystem = new Date();
+    const nowUtc = new Date(nowSystem.toISOString());
+    console.log(`Heure système locale : ${nowSystem.toString()}`);
+    console.log(`Heure UTC : ${nowUtc.toISOString()}`);
     const since = new Date(Date.now() - HOURS_WINDOW * 60 * 60 * 1000);
+    console.log(`Fenêtre since (ISO): ${since.toISOString()}`);
+    console.log(`Fenêtre since (timestamp): ${since.getTime()}`);
+    console.log(`Fenêtre since (locale): ${since.toString()}`);
     // Purge des anciens enregistrements
     await supabase
       .from('recent_top10_buys')
       .delete()
-      .lt('buy_at', since.toISOString());
+      .not('buy_at', 'gte', since.toISOString());
 
     let allBuys = [];
     for (const { key, leaderboard } of PERIODS) {
+      console.log(`\n[${new Date().toISOString()}] Début du fetch pour la période '${key}' (${leaderboard})`);
       const addresses = await fetchTop10Addresses(leaderboard);
       for (const address of addresses) {
+        console.log(`[${new Date().toISOString()}] Fetch des transactions pour l'adresse ${address}...`);
         const buys = await fetchRecentBuysForUser(address, since);
+        if (buys.length > 0) {
+          const firstBuy = buys[0];
+          const lastBuy = buys[buys.length - 1];
+          console.log(`[${new Date().toISOString()}] Premier buy pour ${address}: ${firstBuy.buy_at}`);
+          console.log(`[${new Date().toISOString()}] Dernier buy pour ${address}: ${lastBuy.buy_at}`);
+        }
+        console.log(`[${new Date().toISOString()}] ${buys.length} buys trouvés pour ${address}`);
         for (const buy of buys) {
           allBuys.push({ ...buy, leaderboard_period: key });
         }
@@ -138,6 +155,7 @@ async function main() {
     console.error('❌ Erreur lors du rafraîchissement des recent_top10_buys:', e.message);
     process.exit(1);
   }
+  console.log(`\n=== [${new Date().toISOString()}] Fin du script fetchRecentTop10Buys.js ===`);
   process.exit(0);
 }
 

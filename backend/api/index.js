@@ -682,21 +682,35 @@ app.post('/refresh-recent-top10-buys', async (req, res) => {
         nextAvailable: lastRefresh ? new Date(lastRefresh.getTime() + MINUTES_LIMIT * 60 * 1000) : null
       });
     }
-    // 2. Lancer le script de refresh (à adapter selon l'infra)
-    // Ici, on simule l'appel du script fetchRecentTop10Buys.js
-    // TODO: remplacer par un appel réel (ex: child_process.spawn ou import dynamique)
-    // await runFetchRecentTop10Buys();
-    console.log('Simulated: fetchRecentTop10Buys.js would be called here.');
-    // 3. Mettre à jour la date de refresh
-    const { error: updateError } = await supabase
-      .from('system_status')
-      .update({ recent_top10_buys_refreshed_at: now.toISOString() })
-      .eq('id', 1);
-    if (updateError) throw updateError;
-    res.status(202).json({
-      message: 'Recent top 10 buys refresh initiated.',
-      refreshedAt: now.toISOString(),
-      nextAvailable: new Date(now.getTime() + MINUTES_LIMIT * 60 * 1000)
+    // 2. Lancer le script de refresh réellement
+    const { spawn } = require('child_process');
+    const fetchScript = spawn('node', ['scripts/fetchRecentTop10Buys.js'], {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit'
+    });
+    fetchScript.on('close', (code) => {
+      if (code !== 0) {
+        console.error('❌ fetchRecentTop10Buys.js failed with code', code);
+        return res.status(500).json({ error: 'Failed to refresh recent_top10_buys (script error)' });
+      } else {
+        console.log('✅ fetchRecentTop10Buys.js executed successfully.');
+        // 3. Mettre à jour la date de refresh
+        supabase
+          .from('system_status')
+          .update({ recent_top10_buys_refreshed_at: now.toISOString() })
+          .eq('id', 1)
+          .then(({ error: updateError }) => {
+            if (updateError) {
+              console.error('Error updating refresh timestamp:', updateError);
+              return res.status(500).json({ error: 'Failed to update refresh timestamp' });
+            }
+            res.status(202).json({
+              message: 'Recent top 10 buys refresh initiated.',
+              refreshedAt: now.toISOString(),
+              nextAvailable: new Date(now.getTime() + MINUTES_LIMIT * 60 * 1000)
+            });
+          });
+      }
     });
   } catch (error) {
     console.error('Error during recent_top10_buys refresh:', error.message);
