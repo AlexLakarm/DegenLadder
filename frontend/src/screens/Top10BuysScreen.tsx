@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Text, SegmentedButtons, Card, useTheme, Button, Chip, IconButton, Snackbar } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
+import { getGlobalLeaderboard } from '../data/platforms/common-platform-access';
 
 const API_ENDPOINT = Constants.expoConfig?.extra?.apiEndpoint;
 
@@ -87,6 +88,12 @@ export default function Top10BuysScreen() {
   const { data: status, isLoading: isStatusLoading } = useSystemStatus();
   const refreshMutation = useRefreshRecentTop10Buys();
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string; error?: boolean }>({ visible: false, message: '', error: false });
+
+  // State pour le leaderboard global (24h ou yearly)
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  useEffect(() => {
+    getGlobalLeaderboard(undefined, 'degen_score', period).then(setLeaderboard);
+  }, [period]);
 
   const title = period === '24h'
     ? 'Last buys from the top 10 of the 24h leaderboard'
@@ -227,7 +234,19 @@ export default function Top10BuysScreen() {
                   <Text style={styles.amount}>{item.buy_amount_sol.toFixed(4)} SOL</Text>
                 </View>
                 <View style={styles.row}>
-                  <Text style={styles.user}>{item.user_address.slice(0, 6)}…</Text>
+                  {/* Affichage du rank et win rate */}
+                  {(() => {
+                    // Chercher le user dans le vrai leaderboard global
+                    const user = (leaderboard || []).find((u: any) => u.user_address === item.user_address);
+                    const rank = user?.rank ?? '?';
+                    // win_rate peut être undefined, fallback sur calcul custom si besoin
+                    const winRate = user && user.winningTrades !== undefined && user.losingTrades !== undefined
+                      ? Math.round((user.winningTrades / (user.winningTrades + user.losingTrades)) * 100)
+                      : '?';
+                    return (
+                      <Text style={[styles.user, { color: '#fff', fontWeight: 'bold' }]}>From : Rank : {rank} ; WR:{winRate}%</Text>
+                    );
+                  })()}
                   <Text style={styles.date}>{formatAgo(item.buy_at)}</Text>
                 </View>
               </Card.Content>
