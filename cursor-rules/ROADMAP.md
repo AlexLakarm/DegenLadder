@@ -2,63 +2,114 @@
 
 Voici la liste des prochaines étapes de développement, classées par ordre de priorité.
 
-### 8. Préparation à la Publication sur le dApp Store
+
+### 1. Display des principaux buy-in des top 10 (points)
+
+Parfait, voici la synthèse de la solution à mettre en place :
+
+---
+
+## 1. **Table à créer**
+- **Nom** : `recent_top10_buys`
+- **But** : stocker les “buy in” des top 10 (24h et 2025) sur les 12 dernières heures, pour affichage rapide côté frontend.
+- **Champs proposés** :
+  - `id` (clé primaire, auto-incrément)
+  - `user_address`
+  - `platform` (`pump` ou `bonk`)
+  - `token_mint`
+  - `buy_signature`
+  - `buy_amount_sol`
+  - `buy_at` (timestamp)
+  - `leaderboard_period` (`24h` ou `yearly`)
+  - (optionnel) `token_name`, etc.
+
+---
+
+## 2. **Script de rafraîchissement**
+- **Fonction** :  
+  - À lancer toutes les 15 minutes (ou à la demande).
+  - Va chercher :
+    1. Le top 10 du leaderboard 24h (`degen_rank_24h`)
+    2. Le top 10 du leaderboard 2025 (`degen_rank`)
+    3. Pour chaque user, fetch tous les “buy in” (transactions d’achat) dans les 12 dernières heures sur pump et bonk.
+    4. Insère ces “buy in” dans la table `recent_top10_buys` (avec la période correspondante).
+    5. Purge les anciens enregistrements (>12h).
+
+---
+
+## 3. **Endpoint backend**
+- Expose `/recent-top10-buys?period=24h|yearly` pour retourner la liste à afficher côté frontend.
+
+---
+
+## 4. **Frontend**
+- Consomme l’endpoint, toggle local pour la période, titre dynamique, tri par montant SOL décroissant.
+
+---
+
+## 5. **Étapes d’implémentation**
+1. **Créer la table SQL** `recent_top10_buys`
+2. **Créer le script Node.js** de rafraîchissement (fetch, insert, purge)
+3. **Créer l’endpoint API**
+4. **Brancher le frontend**
+
+---
+
+### SQL de création de la table recent_top10_buys
+
+```sql
+CREATE TABLE public.recent_top10_buys (
+  id BIGSERIAL PRIMARY KEY,
+  user_address TEXT NOT NULL,
+  platform TEXT NOT NULL, -- 'pump' ou 'bonk'
+  token_mint TEXT NOT NULL,
+  buy_signature TEXT NOT NULL,
+  buy_amount_sol REAL NOT NULL,
+  buy_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+  leaderboard_period TEXT NOT NULL, -- '24h' ou 'yearly'
+  token_name TEXT,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+);
+
+-- Index pour accélérer les requêtes sur la période et la date
+CREATE INDEX idx_recent_top10_buys_period_date ON public.recent_top10_buys (leaderboard_period, buy_at DESC);
+```
+
+---
+
+### SQL pour ajouter la colonne de suivi du refresh dans system_status
+
+```sql
+ALTER TABLE public.system_status
+ADD COLUMN IF NOT EXISTS recent_top10_buys_refreshed_at TIMESTAMP WITH TIME ZONE;
+```
+
+---
+
+### SQL pour ajouter la contrainte d'unicité sur recent_top10_buys
+
+```sql
+ALTER TABLE public.recent_top10_buys
+ADD CONSTRAINT unique_buy_per_user_signature_period UNIQUE (user_address, buy_signature, leaderboard_period);
+```
+
+---
+
+### Note sur l'amélioration future
+- Pour avoir le montant SOL exact de chaque "buy in", il faudra parser les transactions d'achat individuellement (via l'API RPC Solana ou un indexer) et enrichir la table avec ce montant lors de l'insertion.
+- Actuellement, le script ne peut pas fournir ce montant car il n'est pas stocké dans les tables trades_*. Il faudra donc une étape d'enrichissement supplémentaire (à prévoir dans le worker ou dans le script de fetch).
+
+### 2. Préparation à la Publication sur le dApp Store
 - **Objectif**: Assurer la conformité de l'application avec les règles de la dApp Store de Solana Mobile pour une publication réussie.
 - **Actions Clés**:
-    - **[✅ DONE] Rédiger une Politique de Confidentialité**
-    - **[✅ DONE] Ajouter des Avertissements (Disclaimers)**
-    - **[✅ DONE] Implémenter la Suppression de Compte**
-    - **Préparer les Éléments du Store**
+    - [✅ DONE] Rédiger une Politique de Confidentialité
+    - [✅ DONE] Ajouter des Avertissements (Disclaimers)
+    - [✅ DONE] Implémenter la Suppression de Compte
+    - Préparer les Éléments du Store
 
-### 9. Mettre en Place les Niveaux d'Utilisateurs (Basic/Pro)
+### 3. Niveaux d'Utilisateurs (Basic/Pro)
 - **Objectif**: Créer un modèle de monétisation pour l'application.
 - **Action Clé**: Implémenter un système à deux niveaux :
     - **Basic**: Accès limité à l'onglet "Home".
     - **Pro**: Accès à toutes les fonctionnalités, pour un coût de 0.1 SOL.
-- **Technologie**: Cela nécessitera la création d'une instruction sur la blockchain via Anchor pour gérer le paiement et la mise à jour du statut de l'utilisateur. 
-Cela a déjà été fait sur la bdd :
-ALTER TABLE public.users
-ADD COLUMN plan TEXT DEFAULT 'basic' NOT NULL;
-
----
-
-### 10. Historique et évolution du rang utilisateur (Leaderboard Dynamics)
-- **Objectif**: Afficher l'évolution du rang d'un utilisateur d'un jour sur l'autre (flèche, +1/-2, etc.)
-- **Étapes techniques** :
-    1. **[✅ DONE] Créer une table d'historique des rangs** (`rank_history`)
-    2. **[✅ DONE] Fonction purge_rank_history** (automatique après chaque scan global)
-    3. **[✅ DONE] Insertion automatique du snapshot de rang après chaque scan global**
-    4. **[✅ DONE] Peuplement initial de rank_history avec les données actuelles**
-    5. **[✅ DONE] Affichage frontend de l'évolution du rang** (flèche, variation, etc.)
-    5. (Rappel technique et exemples SQL ci-dessous)
-
-```sql
--- Table rank_history
-CREATE TABLE rank_history (
-  user_address TEXT,
-  rank INTEGER,
-  snapshot_date DATE,
-  PRIMARY KEY (user_address, snapshot_date)
-);
-
--- Purge automatique (fonction SQL)
-CREATE OR REPLACE FUNCTION purge_rank_history() ...
-
--- Insertion du snapshot (à automatiser)
-INSERT INTO rank_history (user_address, rank, snapshot_date)
-SELECT user_address, rank, CURRENT_DATE FROM degen_rank;
-
--- Calcul de l'évolution
-SELECT
-  dr.rank AS current_rank,
-  rh.rank AS previous_rank,
-  (rh.rank - dr.rank) AS evolution
-FROM degen_rank dr
-LEFT JOIN rank_history rh
-  ON dr.user_address = rh.user_address
- AND rh.snapshot_date = CURRENT_DATE - INTERVAL '1 day'
-WHERE dr.user_address = '<adresse>';
-```
-
-- **Bénéfice** :
-    - Permet à l'utilisateur de visualiser sa progression ou régression dans le classement, rendant l'expérience plus dynamique et engageante.
+    - **Technologie**: Instruction Anchor pour paiement et mise à jour du statut utilisateur.
