@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, LayoutChangeEvent, ViewStyle } from 'react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../../theme';
 import {
@@ -34,7 +34,6 @@ export function GlowingCard({ children }: GlowingCardProps) {
   };
   
   const gradientOrigin = useDerivedValue(() => {
-    // Le reflet suit le doigt, et disparaît quand on ne touche pas
     if (touchX.value === -1 || touchY.value === -1) {
         return vec(cardDimensions.width * 2, cardDimensions.height * 2); 
     }
