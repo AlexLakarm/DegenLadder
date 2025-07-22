@@ -11,10 +11,23 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+async function refreshDegenRankView() {
+  // Appel SQL brut pour rafraîchir la vue matérialisée
+  const { error } = await supabase.rpc('refresh_degen_rank_view');
+  if (error) {
+    console.error('❌ Erreur lors du refresh de la vue matérialisée degen_rank:', error.message);
+    process.exit(1);
+  }
+  console.log('✅ Vue matérialisée degen_rank rafraîchie.');
+}
+
 async function insertRankSnapshot(addresses = []) {
   console.log('📸 Insertion du snapshot de rang dans rank_history...');
   
   try {
+    // 1. Rafraîchir la vue matérialisée avant toute lecture
+    await refreshDegenRankView();
+
     // Date d'aujourd'hui
     const today = new Date().toISOString().split('T')[0];
     
