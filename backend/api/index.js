@@ -621,14 +621,11 @@ app.get('/status', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('system_status')
-            .select('last_global_update_at') // On sélectionne la nouvelle colonne
-            .eq('id', 1) // On s'assure de requêter par l'ID correct
+            .select('last_global_update_at, recent_top10_buys_refreshed_at')
+            .eq('id', 1)
             .single();
-
         if (error) throw error;
-
         res.status(200).json(data);
-
     } catch (error) {
         console.error('Error fetching system status:', error.message);
         res.status(500).json({ error: 'Failed to fetch system status' });
