@@ -211,7 +211,7 @@ export function HomeScreen() {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginVertical: 16,
+      marginVertical: 8, // réduit l'espace
       gap: 8,
     },
     paginationInfo: {
@@ -347,7 +347,7 @@ export function HomeScreen() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <View style={styles.paginationContainer}>
+            <View style={[styles.paginationContainer, { marginTop: 0 }]}>
               <Button
                 icon="chevron-left"
                 mode="outlined"
@@ -377,7 +377,7 @@ export function HomeScreen() {
           {/* My Position (autour de l'utilisateur connecté) */}
           {userAddress && currentUserData && (
             <>
-              <PaperText variant="headlineSmall" style={[styles.sectionTitle, { marginTop: 32 }]}>My Position</PaperText>
+              <PaperText variant="headlineSmall" style={[styles.sectionTitle, { marginTop: 12 }]}>My Position</PaperText>
               <LeaderboardList data={leaderboardData.slice(Math.max(0, leaderboardData.findIndex(entry => entry.user_address === userAddress) - 3), leaderboardData.findIndex(entry => entry.user_address === userAddress) + 4)} currentUserAddress={userAddress} sortBy={sortBy} />
             </>
           )}
