@@ -486,11 +486,11 @@ async function runWorker(userAddress = null, scanMode = 'full') {
   // Insertion du snapshot de rang dans rank_history (après refresh, avant purge)
   if (!isSingleUserMode) {
     try {
-      const { error: snapshotError } = await supabase.rpc('insert_rank_snapshot');
+      const { error: snapshotError } = await supabase.rpc('insert_rankandscore_snapshot');
       if (snapshotError) {
         console.error('❌ Error during rank_history snapshot insertion:', snapshotError.message);
       } else {
-        console.log('✅ rank_history snapshot inserted for today.');
+        console.log('✅ rank_history snapshot (rank+score) inserted for today.');
       }
     } catch (e) {
       console.error('❌ Exception during rank_history snapshot insertion:', e.message);
