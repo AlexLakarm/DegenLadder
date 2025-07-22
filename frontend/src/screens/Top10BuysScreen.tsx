@@ -59,15 +59,18 @@ export default function Top10BuysScreen() {
           { value: 'yearly', label: '2025' },
         ]}
       />
-      <SegmentedButtons
-        value={sortBy}
-        onValueChange={v => setSortBy(v as 'date' | 'sol')}
-        style={{ marginHorizontal: 12, marginBottom: 8 }}
-        buttons={[
-          { value: 'date', label: 'Most recent' },
-          { value: 'sol', label: 'Biggest buy (SOL)' },
-        ]}
-      />
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginRight: 12, marginBottom: 4, marginTop: -4 }}>
+        <Button
+          icon="swap-vertical"
+          mode="text"
+          compact
+          contentStyle={{ flexDirection: 'row-reverse' }}
+          labelStyle={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.onSurface }}
+          onPress={() => setSortBy(sortBy === 'date' ? 'sol' : 'date')}
+        >
+          {sortBy === 'date' ? 'Most recent' : 'Biggest buy (SOL)'}
+        </Button>
+      </View>
       {isLoading && <Text style={styles.loading}>Loading...</Text>}
       {isError && <Text style={styles.error}>Error loading data</Text>}
       <FlatList
