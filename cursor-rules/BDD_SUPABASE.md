@@ -97,6 +97,54 @@ Ce document décrit la structure complète de la base de données utilisée par 
 
 ---
 
+## Fonctions/RPC utiles
+
+### refresh_degen_rank_24h (fonction Supabase)
+- **Description** : Rafraîchit la vue matérialisée `degen_rank_24h` sans relancer tout le worker.
+- **Type** : RPC (fonction Postgres sans paramètre)
+- **Définition** :
+  ```sql
+  create or replace function public.refresh_degen_rank_24h()
+  returns void as $$
+  begin
+    refresh materialized view concurrently degen_rank_24h;
+  end;
+  $$ language plpgsql;
+  ```
+- **Utilisation** :
+  - Dans Supabase SQL Editor :
+    ```sql
+    select refresh_degen_rank_24h();
+    ```
+  - Ou via un script/backend :
+    ```js
+    await supabase.rpc('refresh_degen_rank_24h');
+    ```
+- **Remarque** : Nécessite un index unique sur `user_address` dans la vue pour le mode CONCURRENTLY.
+
+### refresh_degen_rank (fonction Supabase)
+- **Description** : Rafraîchit la vue matérialisée `degen_rank` (leaderboard global) sans relancer tout le worker.
+- **Type** : RPC (fonction Postgres sans paramètre)
+- **Définition** :
+  ```sql
+  create or replace function public.refresh_degen_rank()
+  returns void as $$
+  begin
+    refresh materialized view concurrently public.degen_rank;
+  end;
+  $$ language plpgsql;
+  ```
+- **Utilisation** :
+  - Dans Supabase SQL Editor :
+    ```sql
+    select refresh_degen_rank();
+    ```
+  - Ou via un script/backend :
+    ```js
+    await supabase.rpc('refresh_degen_rank');
+    ```
+- **Remarque** : Nécessite un index unique sur `user_address` dans la vue pour le mode CONCURRENTLY.
+
 ## Annexe : Code SQL de création des tables et de la vue
 
 ```sql
